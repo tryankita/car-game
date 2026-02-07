@@ -4,4 +4,29 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-direction: column;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.title {
+    color: white;
+    font-size: 4rem;
+    text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.play-btn {
+    padding: 15px 50px;
+    font-size: 1.5rem;
+    background: linear-gradient(to bottom, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-top: 30px;
+}
+
+.play-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.5);
 }
