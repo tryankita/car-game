@@ -1,0 +1,27 @@
+.car {
+    width: 50px;
+    height: 90px;
+    position: absolute;
+    border-radius: 10px;
+    transform: translateX(-50%);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: left 0.1s ease;
+}
+
+.player {
+    bottom: 20px;
+    background: linear-gradient(to bottom, #f1c40f, #f39c12);
+    border: 2px solid #d35400;
+    z-index: 10;
+}
+
+.player::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 5px;
+    right: 5px;
+    height: 20px;
+    background: #333;
+    border-radius: 2px;
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Road, Car, Obstacle, HUD, GameOverlay } from './components';
 import './Game.css';
 
 const Game = () => {
@@ -9,61 +10,9 @@ const Game = () => {
 
     // Game config
     const LANES = 3;
-    const GAME_SPEED = 5;
     const SPAWN_RATE = 1000; // ms
 
-    useEffect(() => {
-        let animationFrameId;
-        let lastTime = 0;
-        let lastSpawnTime = 0;
-
-        const gameLoop = (timestamp) => {
-            if (gameState !== 'playing') return;
-
-            if (!lastTime) lastTime = timestamp;
-            const deltaTime = timestamp - lastTime;
-            lastTime = timestamp;
-
-            // Spawn obstacles
-            if (timestamp - lastSpawnTime > SPAWN_RATE) {
-                const lane = Math.floor(Math.random() * LANES);
-                setObstacles(prev => [
-                    ...prev,
-                    { id: Date.now(), lane, y: -100 }
-                ]);
-                lastSpawnTime = timestamp;
-            }
-
-            // Move obstacles and check collisions
-            setObstacles(prev => {
-                const newObstacles = prev
-                    .map(obs => ({ ...obs, y: obs.y + GAME_SPEED }))
-                    .filter(obs => obs.y < 1000); // Remove if off screen (assuming height ~800px, safer to check window height or % logic)
-
-                // Simple collision detection
-                // Player is at bottom: ~80% to 90% (css: bottom 20px, height 100px)
-                // Obstacles move by pixels.
-                // Let's normalize y to % or use pixels consistently.
-                // Current CSS: .car bottom 20px. container height 100vh.
-                // Let's switch obstacle Y to percentage for easier logic or keep pixels and get container height.
-                // For simplicity, let's use % for Y in logic.
-                return newObstacles;
-            });
-
-            // Refined logic needs state access, but simple setObstacles func update is limited for collision with playerPos.
-            // We need to check collision outside the setter or use a ref for playerPos.
-
-            animationFrameId = requestAnimationFrame(gameLoop);
-        };
-
-        if (gameState === 'playing') {
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [gameState]);
-
-    // Use refs for mutable state in loop to avoid dependency hell or stale closures
+    // Refs for game loop
     const playerPosRef = useRef(playerPos);
     const gameStateRef = useRef(gameState);
 
@@ -75,6 +24,23 @@ const Game = () => {
         gameStateRef.current = gameState;
     }, [gameState]);
 
+    // Keyboard controls
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (gameStateRef.current !== 'playing') return;
+
+            if (e.key === 'ArrowLeft') {
+                setPlayerPos(prev => Math.max(0, prev - 1));
+            } else if (e.key === 'ArrowRight') {
+                setPlayerPos(prev => Math.min(LANES - 1, prev + 1));
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Game loop
     useEffect(() => {
         if (gameState !== 'playing') return;
 
@@ -84,21 +50,23 @@ const Game = () => {
         const loop = (timestamp) => {
             if (gameStateRef.current !== 'playing') return;
 
-            // Spawn
+            // Spawn obstacles
             if (timestamp - lastSpawnTime > SPAWN_RATE) {
                 setObstacles(prev => [
                     ...prev,
-                    { id: Date.now(), lane: Math.floor(Math.random() * LANES), y: -20 } // Start slightly above (-20%)
+                    { id: Date.now(), lane: Math.floor(Math.random() * LANES), y: -20 }
                 ]);
                 lastSpawnTime = timestamp;
             }
 
+            // Move obstacles
             setObstacles(prev => {
                 return prev
-                    .map(obs => ({ ...obs, y: obs.y + 0.5 })) // Move down 0.5% per frame
+                    .map(obs => ({ ...obs, y: obs.y + 0.5 }))
                     .filter(obs => obs.y < 120);
             });
 
+            // Update score
             setScore(s => s + 1);
 
             animationFrameId = requestAnimationFrame(loop);
@@ -108,15 +76,12 @@ const Game = () => {
         return () => cancelAnimationFrame(animationFrameId);
     }, [gameState]);
 
-    // Separate collision check to access latest obstacles and playerPos
+    // Collision detection
     useEffect(() => {
         if (gameState !== 'playing') return;
 
         const checkCollision = setInterval(() => {
             obstacles.forEach(obs => {
-                // Hitbox: Player is at Y ~80-90% (bottom 20px in 100vh ~ 10-15% space depending on screen). 
-                // Let's say player is at Y=85% roughly.
-                // Obstacle Y is percentage from top.
                 const playerYStart = 80;
                 const playerYEnd = 95;
 
@@ -133,56 +98,39 @@ const Game = () => {
         return () => clearInterval(checkCollision);
     }, [gameState, obstacles, playerPos]);
 
+    // Start game function
+    const startGame = () => {
+        setGameState('playing');
+        setScore(0);
+        setObstacles([]);
+        setPlayerPos(1);
+    };
+
     return (
         <div className="game-container">
-            {gameState === 'start' && (
-                <div className="overlay">
-                    <h1>Car Game</h1>
-                    <button onClick={startGame}>Start Game</button>
-                </div>
+            {(gameState === 'start' || gameState === 'gameover') && (
+                <GameOverlay
+                    type={gameState}
+                    score={score}
+                    onStart={startGame}
+                />
             )}
 
-            {gameState === 'gameover' && (
-                <div className="overlay">
-                    <h1>Game Over</h1>
-                    <p>Score: {score}</p>
-                    <button onClick={startGame}>Restart</button>
-                </div>
-            )}
+            <Road>
+                <Car lane={playerPos} isPlayer={true} />
 
-            <div className="road">
-                <div className="lane-marker"></div>
-                <div className="lane-marker"></div>
-
-                {/* Player Car */}
-                <div
-                    className="car player"
-                    style={{
-                        left: `${playerPos * 33.33 + 16.66}%`,
-                        transition: 'left 0.1s ease'
-                    }}
-                ></div>
-
-                {/* Obstacles */}
                 {obstacles.map(obs => (
-                    <div
+                    <Obstacle
                         key={obs.id}
-                        className="car obstacle"
-                        style={{
-                            left: `${obs.lane * 33.33 + 16.66}%`,
-                            top: `${obs.y}%`,
-                            backgroundColor: 'blue' // Overridden by CSS class but kept for safety/debug
-                        }}
-                    ></div>
+                        lane={obs.lane}
+                        y={obs.y}
+                    />
                 ))}
-            </div>
+            </Road>
 
-            <div className="hud">
-                Score: {score}
-            </div>
+            <HUD score={score} />
         </div>
     );
-}; // End logic replacement
-
+};
 
 export default Game;

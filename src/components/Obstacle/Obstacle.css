@@ -1,0 +1,15 @@
+.obstacle {
+    background: linear-gradient(to bottom, #e74c3c, #c0392b);
+    border: 2px solid #922b21;
+}
+
+.obstacle::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 5px;
+    right: 5px;
+    height: 10px;
+    background: #333;
+    border-radius: 2px;
+}
