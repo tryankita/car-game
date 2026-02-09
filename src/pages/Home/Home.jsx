@@ -30,16 +30,16 @@ const Home = () => {
                     <div className="coin-icon">🪙</div>
                     <span>0</span>
                 </div>
-                <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
+                <button className="settings-btn" onClick={() => setShowSettings(!showSettings)} aria-label="Toggle settings" aria-expanded={showSettings} aria-controls="settings-panel">⚙️</button>
             </header>
 
             {/* Settings Panel */}
             {showSettings && (
                 <>
                     <div className="settings-backdrop" onClick={() => setShowSettings(false)} />
-                    <div className="settings-panel">
+                    <div className="settings-panel" id="settings-panel" aria-hidden={!showSettings}>
                         <h2>Settings</h2>
-                        <button onClick={() => setShowSettings(false)}>✕</button>
+                        <button onClick={() => setShowSettings(false)} aria-label="Close settings">✕</button>
                     </div>
                 </>
             )}

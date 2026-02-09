@@ -4,9 +4,9 @@ import './GameOverlay.css';
 const GameOverlay = ({ type, score, onStart }) => {
     if (type === 'start') {
         return (
-            <div className="overlay">
+            <div className="overlay" aria-live="assertive">
                 <h1>🏎️ Car Game</h1>
-                <p className="instructions">Use ← → arrow keys to move</p>
+                <p className="instructions">Use arrow keys or tap lanes to dodge</p>
                 <button onClick={onStart}>Start Game</button>
             </div>
         );

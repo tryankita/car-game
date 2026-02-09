@@ -7,6 +7,7 @@ const Game = () => {
     const [score, setScore] = useState(0);
     const [playerPos, setPlayerPos] = useState(1); // 0: left, 1: center, 2: right
     const [obstacles, setObstacles] = useState([]);
+    const OBSTACLE_SPEED = 0.35;
 
     // Game config
     const LANES = 3;
@@ -62,7 +63,7 @@ const Game = () => {
             // Move obstacles
             setObstacles(prev => {
                 return prev
-                    .map(obs => ({ ...obs, y: obs.y + 0.5 }))
+                    .map(obs => ({ ...obs, y: obs.y + OBSTACLE_SPEED }))
                     .filter(obs => obs.y < 120);
             });
 

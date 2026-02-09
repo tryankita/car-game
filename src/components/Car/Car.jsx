@@ -8,6 +8,8 @@ const Car = ({ lane, isPlayer = false }) => {
         <div
             className={`car ${isPlayer ? 'player' : ''}`}
             style={{ left: `${leftPosition}%` }}
+            tabIndex={isPlayer ? 0 : -1}
+            aria-label={isPlayer ? 'Player car' : 'Traffic car'}
         />
     );
 };
