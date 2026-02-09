@@ -1,0 +1,29 @@
+<svg width="200" height="150" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tires -->
+  <circle cx="40" cy="110" r="30" fill="#111" stroke="#333" stroke-width="5" />
+  <circle cx="40" cy="110" r="15" fill="#555" />
+  <circle cx="160" cy="110" r="30" fill="#111" stroke="#333" stroke-width="5" />
+  <circle cx="160" cy="110" r="15" fill="#555" />
+
+  <!-- Suspension -->
+  <rect x="35" y="70" width="10" height="40" fill="#999" />
+  <rect x="155" y="70" width="10" height="40" fill="#999" />
+
+  <!-- Chassis -->
+  <path d="M20 70 L180 70 L170 90 L30 90 Z" fill="#333" />
+
+  <!-- Body -->
+  <path d="M10 50 L60 50 L90 20 L160 20 L180 50 L190 70 L10 70 Z" fill="#0033cc" stroke="#001a66" stroke-width="2" />
+
+  <!-- Window -->
+  <path d="M100 25 L150 25 L165 50 L90 50 Z" fill="#87CEEB" opacity="0.8" />
+
+  <!-- Flames -->
+  <path d="M20 60 Q 60 40 90 60 Q 70 55 50 65 Z" fill="#FF4500" />
+  <path d="M25 62 Q 55 45 80 62 Q 65 58 45 66 Z" fill="#FFD700" />
+
+  <!-- Roof Lights -->
+  <rect x="100" y="10" width="15" height="10" rx="2" fill="#FFD700" />
+  <rect x="120" y="10" width="15" height="10" rx="2" fill="#FFD700" />
+  <rect x="140" y="10" width="15" height="10" rx="2" fill="#FFD700" />
+</svg>

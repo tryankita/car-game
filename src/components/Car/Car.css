@@ -1,6 +1,6 @@
 .car {
-    width: 50px;
-    height: 90px;
+    width: 60px;
+    height: 100px;
     position: absolute;
     border-radius: 10px;
     transform: translateX(-50%);
@@ -10,18 +10,18 @@
 
 .player {
     bottom: 20px;
-    background: linear-gradient(to bottom, #f1c40f, #f39c12);
-    border: 2px solid #d35400;
+    background: linear-gradient(to bottom, #e74c3c, #c0392b);
+    border: 3px solid #922b21;
     z-index: 10;
 }
 
 .player::after {
     content: '';
     position: absolute;
-    top: 10px;
-    left: 5px;
-    right: 5px;
-    height: 20px;
-    background: #333;
-    border-radius: 2px;
+    top: 12px;
+    left: 8px;
+    right: 8px;
+    height: 25px;
+    background: linear-gradient(to bottom, #5dade2, #2980b9);
+    border-radius: 4px;
 }

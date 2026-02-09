@@ -8,3 +8,15 @@
     position: relative;
     overflow: hidden;
 }
+
+@media (orientation: landscape) {
+    .game-container {
+        flex-direction: row;
+    }
+}
+
+@media (orientation: portrait) {
+    .game-container {
+        flex-direction: column;
+    }
+}
