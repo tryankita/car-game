@@ -1,12 +1,16 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import './Home.css';
 import monsterTruck from '../../assets/monster_truck.svg';
 
 const Home = () => {
     const navigate = useNavigate();
+    const [isStarting, setIsStarting] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     const handlePlay = () => {
-        navigate('/game');
+        setIsStarting(true);
+        setTimeout(() => navigate('/game'), 1000);
     };
 
     return (
@@ -26,8 +30,19 @@ const Home = () => {
                     <div className="coin-icon">🪙</div>
                     <span>0</span>
                 </div>
-                <button className="settings-btn">⚙️</button>
+                <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
             </header>
+
+            {/* Settings Panel */}
+            {showSettings && (
+                <>
+                    <div className="settings-backdrop" onClick={() => setShowSettings(false)} />
+                    <div className="settings-panel">
+                        <h2>Settings</h2>
+                        <button onClick={() => setShowSettings(false)}>✕</button>
+                    </div>
+                </>
+            )}
 
             {/* Main Content / Logo */}
             <main className="main-content">
@@ -36,7 +51,7 @@ const Home = () => {
                     <div className="logo-main">RACING</div>
                     <div className="logo-bottom">Lite</div>
                 </div>
-                <img src={monsterTruck} alt="Monster Truck" className="home-car-img" />
+                <img src={monsterTruck} alt="Monster Truck" className={`home-car-img ${isStarting ? 'starting' : ''}`} />
             </main>
 
             {/* Bottom Navigation */}
