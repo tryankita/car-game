@@ -1,0 +1,57 @@
+.settings-page {
+    min-height: 100vh;
+    padding: 2rem;
+    background: #0d1b2a;
+    color: #e2e8f0;
+}
+
+.settings-lede {
+    margin-top: 0.5rem;
+    color: #94a3b8;
+}
+
+.settings-panel {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    box-shadow: 0 20px 45px rgba(7, 15, 30, 0.5);
+}
+
+.settings-subhead {
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    color: #7dd3fc;
+}
+
+.settings-subhead:not(:first-of-type) {
+    margin-top: 1.5rem;
+}
+
+.setting-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #f1f5f9;
+    font: inherit;
+}
+
+.setting-row[aria-pressed="true"] {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+}
+
+.setting-row select {
+    background: transparent;
+    border: none;
+    color: inherit;
+}
