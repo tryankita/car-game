@@ -352,6 +352,11 @@
     box-shadow: 0 6px var(--btn-purple-shadow), 0 10px 10px rgba(0, 0, 0, 0.3);
 }
 
+.btn-settings {
+    background: #f59e0b;
+    box-shadow: 0 6px #c27803, 0 10px 10px rgba(0, 0, 0, 0.3);
+}
+
 .btn-start {
     background: var(--btn-green);
     box-shadow: 0 6px var(--btn-green-shadow), 0 10px 10px rgba(0, 0, 0, 0.3);

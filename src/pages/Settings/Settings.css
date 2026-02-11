@@ -1,57 +1,217 @@
-.settings-page {
-    min-height: 100vh;
-    padding: 2rem;
-    background: #0d1b2a;
-    color: #e2e8f0;
-}
-
-.settings-lede {
-    margin-top: 0.5rem;
-    color: #94a3b8;
-}
-
-.settings-panel {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    margin-top: 2rem;
-    padding: 1.5rem;
-    box-shadow: 0 20px 45px rgba(7, 15, 30, 0.5);
-}
-
-.settings-subhead {
-    letter-spacing: 0.08em;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-    color: #7dd3fc;
-}
-
-.settings-subhead:not(:first-of-type) {
-    margin-top: 1.5rem;
-}
-
-.setting-row {
-    width: 100%;
+/* ── Settings Container (matches Home background) ── */
+.settings-container {
+    width: 100vw;
+    height: 100vh;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    background: linear-gradient(to bottom, #4FC3F7, #0288D1);
+    font-family: 'Titan One', cursive;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* ── Reuse Home clouds & hills ── */
+.settings-container .cloud {
+    position: absolute;
+    background: white;
+    border-radius: 50px;
+    opacity: 0.8;
+    animation: settingsDrift 60s linear infinite;
+}
+.settings-container .cloud::after,
+.settings-container .cloud::before {
+    content: '';
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+}
+.settings-container .c1 { top: 10%; left: -20%; width: 100px; height: 40px; }
+.settings-container .c1::after { top: -20px; left: 15px; width: 40px; height: 40px; }
+.settings-container .c1::before { top: -30px; left: 40px; width: 50px; height: 50px; }
+.settings-container .c2 { top: 20%; left: -10%; width: 120px; height: 50px; animation-duration: 80s; animation-delay: 5s; }
+.settings-container .c2::after { top: -25px; left: 20px; width: 50px; height: 50px; }
+.settings-container .c2::before { top: -35px; left: 50px; width: 60px; height: 60px; }
+
+@keyframes settingsDrift {
+    from { transform: translateX(-20vw); }
+    to   { transform: translateX(120vw); }
+}
+
+.settings-container .hills-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    z-index: 1;
+    pointer-events: none;
+}
+.settings-container .hill {
+    position: absolute;
+    background: radial-gradient(at 50% 0%, #8BC34A, #558B2F);
+    border-radius: 50% 50% 0 0;
+    border-top: 5px solid #33691E;
+}
+.settings-container .hill-1 { width: 120%; height: 300px; bottom: -50px; left: -10%; z-index: 2; }
+.settings-container .hill-2 { width: 100%; height: 400px; bottom: -150px; right: -20%; z-index: 1; background: radial-gradient(at 50% 0%, #7CB342, #33691E); }
+
+/* ── Header ── */
+.settings-header {
+    display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #f1f5f9;
-    font: inherit;
+    justify-content: space-between;
+    padding: 20px;
+    z-index: 10;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.setting-row[aria-pressed="true"] {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.15);
-}
-
-.setting-row select {
-    background: transparent;
+.back-btn {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #ffd54f, #ff7043);
+    border-radius: 50%;
     border: none;
-    color: inherit;
+    font-size: 1.5rem;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px #bdc3c7;
+    -webkit-text-stroke: 1px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+}
+.back-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 #bdc3c7;
+}
+
+.settings-title {
+    font-size: 2rem;
+    color: white;
+    -webkit-text-stroke: 2px black;
+    text-shadow: 4px 4px 0 black;
+    margin: 0;
+}
+
+.header-spacer { width: 45px; }
+
+/* ── Card ── */
+.settings-card {
+    position: relative;
+    z-index: 10;
+    width: min(560px, 90%);
+    margin: 10px auto 40px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 20px;
+    padding: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.card-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.section-heading {
+    font-size: 1.2rem;
+    color: #00E5FF;
+    -webkit-text-stroke: 1px rgba(0,0,0,0.5);
+    text-shadow: 2px 2px 0 black;
+    margin: 0;
+    padding-bottom: 4px;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+}
+
+/* ── Rows ── */
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 16px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.setting-row:hover { background: rgba(255, 255, 255, 0.14); }
+
+.setting-label {
+    color: white;
+    font-size: 1rem;
+    font-family: 'Titan One', cursive;
+    -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
+    white-space: nowrap;
+}
+
+.setting-value {
+    color: #ffd54f;
+    font-size: 1rem;
+    font-family: 'Titan One', cursive;
+    min-width: 48px;
+    text-align: right;
+}
+
+/* ── Slider ── */
+.setting-slider {
+    flex: 1;
+    margin: 0 14px;
+    accent-color: #27ae60;
+    height: 6px;
+    cursor: pointer;
+}
+
+/* ── Toggle pill ── */
+.setting-toggle {
+    font-family: 'Titan One', cursive;
+}
+.toggle-pill {
+    display: inline-block;
+    padding: 4px 18px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: 'Titan One', cursive;
+    -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
+    transition: background 0.2s, color 0.2s;
+}
+.toggle-pill.on  { background: #27ae60; color: white; }
+.toggle-pill.off { background: #e74c3c; color: white; }
+
+/* ── Select ── */
+.setting-select {
+    background: rgba(255,255,255,0.12);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 1rem;
+    font-family: 'Titan One', cursive;
+    cursor: pointer;
+    outline: none;
+}
+.setting-select option {
+    background: #1a1a2e;
+    color: white;
+}
+
+/* ── Responsive landscape ── */
+@media (orientation: landscape) {
+    .settings-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+    .settings-card {
+        margin-top: 80px;
+    }
 }

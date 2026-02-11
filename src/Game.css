@@ -1,22 +1,538 @@
-.game-container {
+/* ─── HCR Game Container ─── */
+.hcr-game {
     width: 100vw;
     height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: #1a1a2e;
+    font-family: 'Titan One', cursive;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+/* ─── 2D Terrain Canvas ─── */
+.terrain-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* ─── TOP HUD BAR ─── */
+.hcr-hud-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
-    justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    justify-content: space-between;
+    padding: 10px 16px;
+    z-index: 20;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.1) 70%, transparent);
+}
+
+.hud-coins {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px 18px 6px 10px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1.5px solid rgba(255, 215, 0, 0.3);
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.hud-coin-icon {
+    font-size: 1.3rem;
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+}
+
+.hud-coin-count {
+    color: #ffd700;
+    font-size: 1.4rem;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.hud-top-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.hud-minimap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hud-vehicle-icon,
+.hud-flag-icon {
+    font-size: 1rem;
+}
+
+.hud-progress-bar {
+    width: 140px;
+    height: 7px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.hud-progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #00e5ff, #76ff03);
+    border-radius: 4px;
+    transition: width 0.3s;
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+}
+
+.hud-distance {
+    color: white;
+    font-size: 0.9rem;
+    min-width: 55px;
+    text-align: right;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.hud-speed {
+    color: #00e5ff;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    letter-spacing: 0.5px;
+}
+
+.hud-pause-btn {
+    width: 46px;
+    height: 46px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hud-pause-btn:active {
+    transform: scale(0.88);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* ─── NEW RECORD BANNER ─── */
+.new-record-banner {
+    position: absolute;
+    top: 16%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3.5rem;
+    background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #ff6b6b);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+    z-index: 30;
+    animation: recordFloat 1.2s ease-in-out infinite alternate, recordShine 2s linear infinite;
+    white-space: nowrap;
+    pointer-events: none;
+    letter-spacing: 2px;
+}
+
+@keyframes recordFloat {
+    from {
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    to {
+        transform: translateX(-50%) translateY(-8px) scale(1.06);
+    }
+}
+
+@keyframes recordShine {
+    to {
+        background-position: 200% center;
+    }
+}
+
+/* ─── BOTTOM DASHBOARD ─── */
+.hcr-dashboard {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 8px 12px 12px;
+    z-index: 20;
+    background: linear-gradient(to top, rgba(10, 10, 20, 0.8) 0%, rgba(10, 10, 20, 0.4) 50%, transparent 100%);
+    pointer-events: none;
+}
+
+.hcr-dashboard>* {
+    pointer-events: auto;
+}
+
+/* ─── PEDALS ─── */
+.pedal {
+    width: 110px;
+    height: 145px;
+    border-radius: 22px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #c0c8d8, #9098a8, #707888);
+    box-shadow:
+        5px 5px 14px rgba(0, 0, 0, 0.6),
+        inset 3px 3px 6px rgba(255, 255, 255, 0.2),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.25),
+        0 0 0 2px rgba(255, 255, 255, 0.06);
+    transition: transform 0.08s, box-shadow 0.08s;
+    flex-shrink: 0;
     position: relative;
     overflow: hidden;
 }
 
-@media (orientation: landscape) {
-    .game-container {
-        flex-direction: row;
+.pedal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), transparent);
+    border-radius: 22px 22px 0 0;
+    pointer-events: none;
+}
+
+.pedal-gas {
+    box-shadow:
+        5px 5px 14px rgba(0, 0, 0, 0.6),
+        inset 3px 3px 6px rgba(255, 255, 255, 0.2),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.25),
+        0 0 20px rgba(46, 204, 113, 0.2);
+}
+
+.pedal-brake {
+    box-shadow:
+        5px 5px 14px rgba(0, 0, 0, 0.6),
+        inset 3px 3px 6px rgba(255, 255, 255, 0.2),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.25),
+        0 0 20px rgba(231, 76, 60, 0.2);
+}
+
+.pedal:active {
+    transform: translateY(5px) scale(0.95);
+    box-shadow:
+        1px 1px 4px rgba(0, 0, 0, 0.5),
+        inset 4px 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.pedal-gas:active {
+    box-shadow:
+        1px 1px 4px rgba(0, 0, 0, 0.5),
+        inset 4px 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 25px rgba(46, 204, 113, 0.5);
+}
+
+.pedal-brake:active {
+    box-shadow:
+        1px 1px 4px rgba(0, 0, 0, 0.5),
+        inset 4px 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 25px rgba(231, 76, 60, 0.5);
+}
+
+.pedal-dots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.pedal-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #9098a8, #555d68);
+    box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ─── GAUGES ─── */
+.gauges-row {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.hud-record-badges {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 4px;
+}
+
+.record-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 4px 14px;
+    border-radius: 16px;
+    color: white;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.badge-icon {
+    font-size: 0.95rem;
+}
+
+.gauges-cluster {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 6px;
+}
+
+.gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: radial-gradient(circle at 50% 65%, #1e1e2e, #0a0a14);
+    border: 2.5px solid #3a3a4a;
+    box-shadow:
+        0 5px 18px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 0 0 1px rgba(0, 0, 0, 0.5);
+    padding: 8px 6px 3px;
+}
+
+.gauge-side {
+    width: 100px;
+    height: 78px;
+    border-radius: 50% 50% 14px 14px;
+}
+
+.gauge-center {
+    width: 130px;
+    height: 95px;
+    border-radius: 50% 50% 16px 16px;
+}
+
+.gauge-svg {
+    width: 100%;
+    height: auto;
+}
+
+.gauge-label {
+    color: rgba(200, 200, 220, 0.8);
+    font-size: 0.65rem;
+    font-family: 'Titan One', cursive;
+    letter-spacing: 2.5px;
+    margin-top: -1px;
+    text-transform: uppercase;
+}
+
+/* ─── OVERLAYS ─── */
+.hcr-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 5, 15, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    gap: 16px;
+    animation: overlayFadeIn 0.35s ease-out;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
     }
 }
 
-@media (orientation: portrait) {
-    .game-container {
-        flex-direction: column;
+.hcr-overlay-title {
+    font-size: 3rem;
+    color: white;
+    margin: 0;
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.2), 0 4px 8px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1px;
+}
+
+.hcr-overlay-sub {
+    color: rgba(189, 195, 199, 0.9);
+    font-size: 1.1rem;
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    letter-spacing: 0.3px;
+}
+
+.hcr-overlay-btn {
+    padding: 14px 50px;
+    font-size: 1.5rem;
+    font-family: 'Titan One', cursive;
+    color: white;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    box-shadow:
+        0 6px 0 #1a7a3e,
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: transform 0.12s, box-shadow 0.12s;
+    min-width: 200px;
+    text-align: center;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hcr-overlay-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 45%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), transparent);
+    border-radius: 16px 16px 0 0;
+    pointer-events: none;
+}
+
+.hcr-overlay-btn:active {
+    transform: translateY(6px);
+    box-shadow: 0 0 0 #1a7a3e, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.hcr-back-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    box-shadow:
+        0 6px 0 #7b241c,
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.hcr-back-btn:active {
+    box-shadow: 0 0 0 #7b241c, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Gameover stats ─── */
+.gameover-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 18px;
+    padding: 20px 40px;
+    margin-bottom: 6px;
+    min-width: 280px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.25rem;
+    gap: 30px;
+}
+
+.stat-row strong {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 600px) {
+    .pedal {
+        width: 85px;
+        height: 115px;
+        border-radius: 18px;
+    }
+
+    .gauge-side {
+        width: 80px;
+        height: 65px;
+    }
+
+    .gauge-center {
+        width: 100px;
+        height: 78px;
+    }
+
+    .new-record-banner {
+        font-size: 2.2rem;
+    }
+
+    .hcr-overlay-title {
+        font-size: 2rem;
+    }
+
+    .hcr-overlay-btn {
+        padding: 12px 36px;
+        font-size: 1.2rem;
+        min-width: 160px;
+    }
+
+    .gameover-stats {
+        padding: 16px 24px;
+        min-width: 240px;
+    }
+}
+
+@media (orientation: landscape) {
+    .pedal {
+        width: 120px;
+        height: 155px;
+    }
+
+    .gauge-side {
+        width: 110px;
+        height: 85px;
+    }
+
+    .gauge-center {
+        width: 140px;
+        height: 102px;
     }
 }
