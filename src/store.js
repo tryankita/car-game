@@ -1,8 +1,13 @@
 import { create } from 'zustand'
+import audioManager from './audioManager'
 
 const useGameStore = create((set, get) => ({
   // --- Screens ---
   screen: 'home', // 'home' | 'garage' | 'playing'
+
+  // --- Audio ---
+  musicMuted: false,
+  musicVolume: 0.3,
 
   // --- Car selection ---
   selectedCar: 0,
@@ -60,6 +65,17 @@ const useGameStore = create((set, get) => ({
   },
 
   goHome: () => set({ screen: 'home', raceFinished: false, speed: 0 }),
+
+  // --- Audio Actions ---
+  toggleMute: () => {
+    const muted = audioManager.toggleMute()
+    set({ musicMuted: muted })
+  },
+
+  setVolume: (vol) => {
+    audioManager.setVolume(vol)
+    set({ musicVolume: vol })
+  },
 }))
 
 export default useGameStore

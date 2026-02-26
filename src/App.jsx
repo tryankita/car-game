@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import useGameStore from './store'
+import audioManager from './audioManager'
 import Car from './components/Car'
 import Track from './components/Track'
 import Terrain from './components/Terrain'
@@ -14,6 +15,8 @@ function GameScene() {
   const setRaceStarted = useGameStore((s) => s.setRaceStarted)
 
   useEffect(() => {
+    audioManager.playRaceMusic()
+    
     const t1 = setTimeout(() => setCountdown(2), 1000)
     const t2 = setTimeout(() => setCountdown(1), 2000)
     const t3 = setTimeout(() => {
@@ -24,6 +27,7 @@ function GameScene() {
       clearTimeout(t1)
       clearTimeout(t2)
       clearTimeout(t3)
+      audioManager.stopEngineSound()
     }
   }, [])
 
@@ -36,13 +40,56 @@ function GameScene() {
         <Car />
       </Canvas>
       <HUD />
+      <MusicToggle />
     </div>
+  )
+}
+
+/* ── Music Toggle Button ───────────────────────────────────── */
+function MusicToggle() {
+  const musicMuted = useGameStore((s) => s.musicMuted)
+  const toggleMute = useGameStore((s) => s.toggleMute)
+
+  return (
+    <button
+      onClick={toggleMute}
+      style={{
+        position: 'absolute',
+        top: '1.5rem',
+        right: '1.5rem',
+        width: '50px',
+        height: '50px',
+        borderRadius: '50%',
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(10px)',
+        border: '2px solid rgba(255, 255, 255, 0.2)',
+        color: '#fff',
+        fontSize: '1.5rem',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+      title={musicMuted ? 'Unmute Music' : 'Mute Music'}
+    >
+      {musicMuted ? '🔇' : '🔊'}
+    </button>
   )
 }
 
 export default function App() {
   const screen = useGameStore((s) => s.screen)
-  if (screen === 'home') return <Home />
-  if (screen === 'garage') return <Garage />
+
+  // Play appropriate music for each screen
+  useEffect(() => {
+    if (screen === 'home' || screen === 'garage') {
+      audioManager.playMenuMusic()
+    }
+  }, [screen])
+
+  if (screen === 'home') return <><Home /><MusicToggle /></>
+  if (screen === 'garage') return <><Garage /><MusicToggle /></>
   return <GameScene />
 }

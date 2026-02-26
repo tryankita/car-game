@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../store'
+import audioManager from '../audioManager'
 
 const pressedKeys = {}
 
@@ -37,7 +38,7 @@ function GLBCarModel({ color }) {
     <primitive
       object={clonedScene}
       scale={1.5}
-      rotation={[0, Math.PI, 0]}
+      rotation={[0, 0, 0]}
       position={[0, 0, 0]}
     />
   )
@@ -191,6 +192,9 @@ export default function Car() {
     // Store updates
     setSpeed(Math.abs(velocity.current))
     setRaceTime(state.clock.getElapsedTime() - raceStartTimeRef.current)
+
+    // Update engine sound based on speed
+    audioManager.updateEngineSound(Math.abs(velocity.current), topSpeed)
 
     // --- Lap detection ---
     const x = car.position.x
