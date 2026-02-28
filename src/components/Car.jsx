@@ -4,6 +4,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../store'
 import audioManager from '../audioManager'
+import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack } from '../trackData'
 
 const pressedKeys = {}
 
@@ -39,7 +40,7 @@ function GLBCarModel({ color }) {
       object={clonedScene}
       scale={1.5}
       rotation={[0, 0, 0]}
-      position={[0, 0, 0]}
+      position={[0, 0.35, 0]}
     />
   )
 }
@@ -47,7 +48,7 @@ function GLBCarModel({ color }) {
 /* ── Fallback box car (shown while model loads) ────────────── */
 function FallbackCar({ color }) {
   return (
-    <group>
+    <group position={[0, 0.35, 0]}>
       <mesh position={[0, 0.55, 0]} castShadow>
         <boxGeometry args={[2.1, 0.5, 4.2]} />
         <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
@@ -89,12 +90,18 @@ export default function Car() {
   const raceStartTimeRef = useRef(0)
 
   const selectedCar = useGameStore((s) => s.selectedCar)
+  const selectedLevel = useGameStore((s) => s.selectedLevel)
   const cars = useGameStore((s) => s.cars)
   const raceStarted = useGameStore((s) => s.raceStarted)
   const raceFinished = useGameStore((s) => s.raceFinished)
   const setSpeed = useGameStore((s) => s.setSpeed)
   const setRaceTime = useGameStore((s) => s.setRaceTime)
+  const setCarPosition = useGameStore((s) => s.setCarPosition)
   const completeLap = useGameStore((s) => s.completeLap)
+
+  // Activate the correct level's track data
+  setActiveLevel(selectedLevel)
+  const track = getActiveTrack()
 
   const carConfig = cars[selectedCar]
 
@@ -115,18 +122,18 @@ export default function Car() {
     }
   }, [])
 
-  /* Reset on car change */
+  /* Reset on car change or level change */
   useEffect(() => {
     if (carRef.current) {
-      carRef.current.position.set(70, 0, 0)
+      carRef.current.position.set(track.spawn[0], 0.1, track.spawn[1])
       carRef.current.rotation.set(0, 0, 0)
       velocity.current = 0
-      prevZ.current = 0
+      prevZ.current = track.spawn[1]
       hasLeftStart.current = false
       lapStartTime.current = 0
       raceStartTimeRef.current = 0
     }
-  }, [selectedCar])
+  }, [selectedCar, selectedLevel])
 
   /* Physics & camera — every frame */
   useFrame((state, delta) => {
@@ -171,11 +178,8 @@ export default function Car() {
     velocity.current = THREE.MathUtils.clamp(velocity.current, -topSpeed * 0.3, topSpeed)
     if (Math.abs(velocity.current) < 0.05) velocity.current = 0
 
-    // Off-track slowdown (inside or outside the ring road)
-    const distFromCenter = Math.sqrt(car.position.x ** 2 + car.position.z ** 2)
-    if (distFromCenter < 50 || distFromCenter > 90) {
-      velocity.current *= 1 - 3 * dt
-    }
+    // Keep car above ground
+    if (car.position.y < 0.1) car.position.y = 0.1
 
     // Steering
     const speedRatio = Math.abs(velocity.current) / topSpeed
@@ -187,24 +191,53 @@ export default function Car() {
     // Movement
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
     car.position.addScaledVector(forward, velocity.current * dt)
-    car.position.y = 0
+    car.position.y = 0.1
+
+    // ── Barrier collision (slide along walls) ────────────────
+    const info = nearestTrackInfo(car.position.x, car.position.z)
+    const absDist = Math.abs(info.signedDist)
+    const maxDist = WALL_D - 1.4  // car half-width buffer
+
+    if (absDist > maxDist) {
+      // 1) Clamp position back to wall surface
+      const sign = info.signedDist > 0 ? 1 : -1
+      const push = absDist - maxDist + 0.05        // small extra margin
+      car.position.x -= info.nx * push * sign
+      car.position.z -= info.nz * push * sign
+
+      // 2) Remove the velocity component going INTO the wall
+      //    so the car slides along it instead of getting stuck
+      const wallNx = info.nx * sign
+      const wallNz = info.nz * sign
+      const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
+      const dotIntoWall = fwd.x * wallNx + fwd.z * wallNz
+      if ((dotIntoWall > 0 && velocity.current > 0) ||
+          (dotIntoWall < 0 && velocity.current < 0)) {
+        // Reduce speed proportional to how head-on the collision is
+        const factor = Math.abs(dotIntoWall)   // 0 = parallel, 1 = head-on
+        velocity.current *= Math.max(1 - factor * 0.85, 0.08)
+      }
+    }
 
     // Store updates
     setSpeed(Math.abs(velocity.current))
     setRaceTime(state.clock.getElapsedTime() - raceStartTimeRef.current)
+    setCarPosition(car.position.x, car.position.z, car.rotation.y)
 
     // Update engine sound based on speed
     audioManager.updateEngineSound(Math.abs(velocity.current), topSpeed)
 
-    // --- Lap detection ---
+    // --- Lap detection (cross Z=0 on the start straight) ---
     const x = car.position.x
     const z = car.position.z
 
     if (!hasLeftStart.current) {
-      if (Math.sqrt((x - 70) ** 2 + z ** 2) > 30) hasLeftStart.current = true
+      if (z > track.sfLeaveZ || z < -track.sfLeaveZ) hasLeftStart.current = true
     }
 
-    if (hasLeftStart.current && x > 50 && x < 90 && prevZ.current < 0 && z >= 0) {
+    if (hasLeftStart.current
+      && x > track.sfX - track.sfRange && x < track.sfX + track.sfRange
+      && prevZ.current < 0 && z >= 0) {
       const now = state.clock.getElapsedTime()
       const lt = now - lapStartTime.current
       if (lt > 3) {
@@ -217,7 +250,7 @@ export default function Car() {
   })
 
   return (
-    <group ref={carRef} position={[70, 0, 0]}>
+    <group ref={carRef} position={[track.spawn[0], 0.1, track.spawn[1]]}>
       <CarModel color={carConfig.color} />
     </group>
   )

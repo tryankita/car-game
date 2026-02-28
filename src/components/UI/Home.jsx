@@ -3,7 +3,6 @@ import useGameStore from '../../store'
 import audioManager from '../../audioManager'
 
 export default function Home() {
-  const startRace = useGameStore((s) => s.startRace)
   const setScreen = useGameStore((s) => s.setScreen)
   const [hoverStart, setHoverStart] = useState(false)
   const [hoverGarage, setHoverGarage] = useState(false)
@@ -16,7 +15,7 @@ export default function Home() {
 
   const handleStartRace = () => {
     audioManager.enableAudio()
-    startRace()
+    setScreen('levels')
   }
 
   const handleGarage = () => {

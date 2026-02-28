@@ -1,18 +1,97 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, Suspense, lazy } from 'react'
 import { Canvas } from '@react-three/fiber'
 import useGameStore from './store'
 import audioManager from './audioManager'
-import Car from './components/Car'
-import Track from './components/Track'
-import Terrain from './components/Terrain'
-import Lighting from './components/Lighting'
-import Home from './components/UI/Home'
-import Garage from './components/UI/Garage'
-import HUD from './components/UI/HUD'
 
+// Lazy-loaded UI pages
+const Home       = lazy(() => import('./components/UI/Home'))
+const Garage     = lazy(() => import('./components/UI/Garage'))
+const Levels     = lazy(() => import('./components/UI/Levels'))
+const HUD        = lazy(() => import('./components/UI/HUD'))
+const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
+
+// Lazy-loaded 3D scene components
+const Car      = lazy(() => import('./components/Car'))
+const Track    = lazy(() => import('./components/Track'))
+const Terrain  = lazy(() => import('./components/Terrain'))
+const Lighting = lazy(() => import('./components/Lighting'))
+
+/* ── Loading Fallback ───────────────────────────────────────── */
+function PageLoader({ label = 'LOADING' }) {
+  return (
+    <div style={loaderStyle}>
+      <div style={loaderInner}>
+        <div style={spinnerRing} />
+        <div style={loaderText}>{label}</div>
+        <div style={loaderDots}>
+          <span style={{ ...dot, animationDelay: '0s' }} />
+          <span style={{ ...dot, animationDelay: '0.2s' }} />
+          <span style={{ ...dot, animationDelay: '0.4s' }} />
+        </div>
+      </div>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blink { 0%,100%{opacity:0.2} 50%{opacity:1} }
+      `}</style>
+    </div>
+  )
+}
+
+const loaderStyle = {
+  width: '100vw',
+  height: '100vh',
+  background: '#050510',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: "'Orbitron', sans-serif",
+}
+
+const loaderInner = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '1.5rem',
+}
+
+const spinnerRing = {
+  width: '64px',
+  height: '64px',
+  borderRadius: '50%',
+  border: '3px solid rgba(0, 180, 255, 0.15)',
+  borderTop: '3px solid #00b4ff',
+  animation: 'spin 0.9s linear infinite',
+  boxShadow: '0 0 20px rgba(0, 180, 255, 0.4)',
+}
+
+const loaderText = {
+  fontSize: '1rem',
+  fontWeight: 700,
+  letterSpacing: '0.3em',
+  color: '#ffffff',
+  textShadow: '0 0 15px rgba(0, 180, 255, 0.8)',
+}
+
+const loaderDots = {
+  display: 'flex',
+  gap: '0.5rem',
+}
+
+const dot = {
+  display: 'inline-block',
+  width: '8px',
+  height: '8px',
+  borderRadius: '50%',
+  background: '#00b4ff',
+  animation: 'blink 1s ease-in-out infinite',
+  boxShadow: '0 0 8px rgba(0, 180, 255, 0.6)',
+}
+
+/* ── Game Scene ─────────────────────────────────────────────── */
 function GameScene() {
   const setCountdown = useGameStore((s) => s.setCountdown)
   const setRaceStarted = useGameStore((s) => s.setRaceStarted)
+  const raceFinished = useGameStore((s) => s.raceFinished)
 
   useEffect(() => {
     audioManager.playRaceMusic()
@@ -33,13 +112,22 @@ function GameScene() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas shadows camera={{ position: [85, 15, -20], fov: 55 }}>
-        <Lighting />
-        <Track />
-        <Terrain />
-        <Car />
+      <Canvas shadows camera={{ position: [155, 12, -20], fov: 60 }}>
+        <Suspense fallback={null}>
+          <Lighting />
+          <Track />
+          <Terrain />
+          <Car />
+        </Suspense>
       </Canvas>
-      <HUD />
+      <Suspense fallback={null}>
+        <HUD />
+      </Suspense>
+      {raceFinished && (
+        <Suspense fallback={null}>
+          <RaceFinish />
+        </Suspense>
+      )}
       <MusicToggle />
     </div>
   )
@@ -79,17 +167,40 @@ function MusicToggle() {
   )
 }
 
+/* ── Root App ───────────────────────────────────────────────── */
 export default function App() {
   const screen = useGameStore((s) => s.screen)
 
-  // Play appropriate music for each screen
   useEffect(() => {
-    if (screen === 'home' || screen === 'garage') {
+    if (screen === 'home' || screen === 'garage' || screen === 'levels') {
       audioManager.playMenuMusic()
     }
   }, [screen])
 
-  if (screen === 'home') return <><Home /><MusicToggle /></>
-  if (screen === 'garage') return <><Garage /><MusicToggle /></>
-  return <GameScene />
+  if (screen === 'home')
+    return (
+      <Suspense fallback={<PageLoader label="LOADING" />}>
+        <Home /><MusicToggle />
+      </Suspense>
+    )
+
+  if (screen === 'garage')
+    return (
+      <Suspense fallback={<PageLoader label="GARAGE" />}>
+        <Garage /><MusicToggle />
+      </Suspense>
+    )
+
+  if (screen === 'levels')
+    return (
+      <Suspense fallback={<PageLoader label="LEVELS" />}>
+        <Levels /><MusicToggle />
+      </Suspense>
+    )
+
+  return (
+    <Suspense fallback={<PageLoader label="RACE" />}>
+      <GameScene />
+    </Suspense>
+  )
 }

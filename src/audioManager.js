@@ -1,7 +1,9 @@
 class AudioManager {
   constructor() {
     this.menuMusic = null
-    this.raceMusic = null
+    this.raceMusic = null       // currently playing race track
+    this.raceTracks = []        // all loaded race Audio objects
+    this.currentRaceIdx = -1    // index of the track playing
     this.engineSound = null
     this.volume = 0.3
     this.muted = false
@@ -20,15 +22,23 @@ class AudioManager {
       this.menuMusic.preload = 'auto'
       this.menuMusic.onerror = () => console.warn('⚠️ menu-music.mp3 not found')
 
-      // Race music (loops) - fallback to menu if not found
-      this.raceMusic = new Audio('/audio/race-music.mp3')
-      this.raceMusic.loop = true
-      this.raceMusic.volume = this.volume
-      this.raceMusic.preload = 'auto'
-      this.raceMusic.onerror = () => {
-        console.warn('⚠️ race-music.mp3 not found, using menu music')
-        this.raceMusic = this.menuMusic
-      }
+      // Race tracks playlist (random, no loops — onended picks next)
+      const raceFiles = [
+        '/audio/melodyayresgriffiths-the-race-is-on-racing-soundtrack-videogame-instrumental-378331.mp3',
+        '/audio/muzaproduction-twisted-metal-racing-126292.mp3',
+        '/audio/spinopel-speed-race-344521.mp3',
+        '/audio/spmusic-heavy-racing-151129.mp3',
+      ]
+
+      this.raceTracks = raceFiles.map((src, i) => {
+        const audio = new Audio(src)
+        audio.loop = false
+        audio.volume = this.volume
+        audio.preload = 'auto'
+        audio.onerror = () => console.warn(`⚠️ Race track ${i + 1} not found: ${src}`)
+        audio.onended = () => this._playNextRaceTrack()
+        return audio
+      })
 
       // Engine sound (loops) - optional
       this.engineSound = new Audio('/audio/engine-sound.mp3')
@@ -44,6 +54,26 @@ class AudioManager {
     }
   }
 
+  _pickRandomRaceIdx() {
+    if (this.raceTracks.length === 0) return -1
+    if (this.raceTracks.length === 1) return 0
+    let next
+    do {
+      next = Math.floor(Math.random() * this.raceTracks.length)
+    } while (next === this.currentRaceIdx)
+    return next
+  }
+
+  _playNextRaceTrack() {
+    if (!this.userInteracted || this.muted || this.raceTracks.length === 0) return
+    this.currentRaceIdx = this._pickRandomRaceIdx()
+    const track = this.raceTracks[this.currentRaceIdx]
+    track.currentTime = 0
+    track.play()
+      .then(() => console.log(`🎵 Race track ${this.currentRaceIdx + 1} playing`))
+      .catch(err => console.error('❌ Race track error:', err))
+  }
+
   enableAudio() {
     this.userInteracted = true
     this.init()
@@ -54,10 +84,8 @@ class AudioManager {
       console.warn('⚠️ Audio requires user interaction first')
       return
     }
-    
     this.init()
     if (this.muted || !this.menuMusic) return
-    
     this.stopRaceMusic()
     this.menuMusic.currentTime = 0
     this.menuMusic.play()
@@ -70,15 +98,10 @@ class AudioManager {
       console.warn('⚠️ Audio requires user interaction first')
       return
     }
-    
     this.init()
-    if (this.muted || !this.raceMusic) return
-    
+    if (this.muted || this.raceTracks.length === 0) return
     this.stopMenuMusic()
-    this.raceMusic.currentTime = 0
-    this.raceMusic.play()
-      .then(() => console.log('🎵 Race music playing'))
-      .catch(err => console.error('❌ Race music error:', err))
+    this._playNextRaceTrack()
   }
 
   stopMenuMusic() {
@@ -89,10 +112,11 @@ class AudioManager {
   }
 
   stopRaceMusic() {
-    if (this.raceMusic) {
-      this.raceMusic.pause()
-      this.raceMusic.currentTime = 0
-    }
+    this.raceTracks.forEach(track => {
+      track.pause()
+      track.currentTime = 0
+    })
+    this.currentRaceIdx = -1
   }
 
   updateEngineSound(speed, maxSpeed) {
@@ -119,7 +143,7 @@ class AudioManager {
   setVolume(vol) {
     this.volume = Math.max(0, Math.min(1, vol))
     if (this.menuMusic) this.menuMusic.volume = this.volume
-    if (this.raceMusic) this.raceMusic.volume = this.volume
+    this.raceTracks.forEach(t => { t.volume = this.volume })
   }
 
   toggleMute() {
