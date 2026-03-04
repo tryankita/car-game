@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import useGameStore from '../../store'
 import { getActiveTrack, setActiveLevel } from '../../trackData'
 
@@ -122,6 +122,23 @@ export default function HUD() {
   const countdown = useGameStore((s) => s.countdown)
   const raceStarted = useGameStore((s) => s.raceStarted)
   const raceFinished = useGameStore((s) => s.raceFinished)
+  const paused = useGameStore((s) => s.paused)
+  const togglePause = useGameStore((s) => s.togglePause)
+  const goHome = useGameStore((s) => s.goHome)
+  const startRace = useGameStore((s) => s.startRace)
+  const musicMuted = useGameStore((s) => s.musicMuted)
+  const musicVolume = useGameStore((s) => s.musicVolume)
+  const toggleMute = useGameStore((s) => s.toggleMute)
+  const setVolume = useGameStore((s) => s.setVolume)
+
+  // Escape key toggles pause
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Escape' && raceStarted && !raceFinished) togglePause()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [raceStarted, raceFinished, togglePause])
 
   return (
     <div
@@ -222,9 +239,171 @@ export default function HUD() {
         </div>
       )}
 
+      {/* ── Pause button ──────────────────────────────── */}
+      {raceStarted && !raceFinished && (
+        <button
+          onClick={togglePause}
+          style={pauseBtn}
+        >
+          {paused ? '▶' : '❚❚'}
+        </button>
+      )}
+
+      {/* ── Pause overlay ──────────────────────────────────── */}
+      {paused && (
+        <div style={pauseOverlay}>
+          <div style={pausePanel}>
+            <div style={pauseTitle}>PAUSED</div>
+            <button style={pauseMenuBtn} onClick={togglePause}>
+              RESUME
+            </button>
+            <button style={{ ...pauseMenuBtn, borderColor: 'rgba(255,180,0,0.5)' }} onClick={() => { togglePause(); startRace(); }}>
+              RESTART
+            </button>
+            <button style={{ ...pauseMenuBtn, borderColor: 'rgba(255,50,80,0.5)' }} onClick={goHome}>
+              QUIT TO MENU
+            </button>
+
+            {/* Volume controls */}
+            <div style={volumeSection}>
+              <button style={volumeToggleBtn} onClick={toggleMute}>
+                {musicMuted ? '🔇' : '🔊'}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={musicMuted ? 0 : musicVolume}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value)
+                  if (musicMuted && v > 0) toggleMute()
+                  setVolume(v)
+                }}
+                style={volumeSlider}
+              />
+              <span style={volumeLabel}>{musicMuted ? 'MUTED' : `${Math.round(musicVolume * 100)}%`}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Race finish is handled by RaceFinish component */}
     </div>
   )
+}
+
+const pauseBtn = {
+  position: 'absolute',
+  top: '1.5rem',
+  left: '1.5rem',
+  width: '44px',
+  height: '44px',
+  borderRadius: '50%',
+  background: 'rgba(0, 0, 0, 0.5)',
+  backdropFilter: 'blur(8px)',
+  border: '2px solid rgba(255, 255, 255, 0.2)',
+  color: '#fff',
+  fontSize: '1.1rem',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  pointerEvents: 'auto',
+  zIndex: 10,
+  transition: 'all 0.2s',
+  fontFamily: 'sans-serif',
+}
+
+const pauseOverlay = {
+  position: 'absolute',
+  inset: 0,
+  background: 'rgba(0, 0, 0, 0.7)',
+  backdropFilter: 'blur(6px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 20,
+  pointerEvents: 'auto',
+}
+
+const pausePanel = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '1.5rem',
+  padding: '3rem 4rem',
+  background: 'rgba(10, 10, 20, 0.85)',
+  borderRadius: '16px',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: '0 0 40px rgba(0, 180, 255, 0.15)',
+}
+
+const pauseTitle = {
+  fontSize: '2.5rem',
+  fontWeight: 900,
+  color: '#fff',
+  letterSpacing: '0.2em',
+  textShadow: '0 0 20px rgba(0, 180, 255, 0.6)',
+  fontFamily: "'Orbitron', sans-serif",
+}
+
+const pauseMenuBtn = {
+  minWidth: '220px',
+  padding: '0.9rem 2rem',
+  fontSize: '1rem',
+  fontWeight: 700,
+  fontFamily: "'Orbitron', sans-serif",
+  color: '#fff',
+  background: 'rgba(20, 20, 40, 0.8)',
+  border: '2px solid rgba(0, 180, 255, 0.4)',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  letterSpacing: '0.15em',
+  transition: 'all 0.2s',
+  textTransform: 'uppercase',
+}
+
+const volumeSection = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.8rem',
+  marginTop: '0.5rem',
+  padding: '0.6rem 1rem',
+  background: 'rgba(255, 255, 255, 0.04)',
+  borderRadius: '8px',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+}
+
+const volumeToggleBtn = {
+  width: '36px',
+  height: '36px',
+  borderRadius: '50%',
+  background: 'rgba(0, 0, 0, 0.4)',
+  border: '1px solid rgba(255, 255, 255, 0.15)',
+  color: '#fff',
+  fontSize: '1.1rem',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+}
+
+const volumeSlider = {
+  width: '120px',
+  height: '4px',
+  cursor: 'pointer',
+  accentColor: '#00b4ff',
+}
+
+const volumeLabel = {
+  fontSize: '0.65rem',
+  color: 'rgba(255, 255, 255, 0.5)',
+  letterSpacing: '0.1em',
+  fontFamily: "'Orbitron', sans-serif",
+  minWidth: '40px',
+  textAlign: 'right',
 }
 
 const centerMsg = {

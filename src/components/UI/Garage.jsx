@@ -51,7 +51,6 @@ export default function Garage() {
   const selectedCar = useGameStore((s) => s.selectedCar)
   const selectCar = useGameStore((s) => s.selectCar)
   const setScreen = useGameStore((s) => s.setScreen)
-  const startRace = useGameStore((s) => s.startRace)
 
   const currentCar = cars[selectedCar]
 
@@ -65,7 +64,7 @@ export default function Garage() {
 
   const handleStartRace = () => {
     audioManager.enableAudio()
-    startRace()
+    setScreen('levels')
   }
 
   return (
@@ -161,7 +160,7 @@ export default function Garage() {
             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
             <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>▶</span>
-            START RACE
+            SELECT LEVEL
           </button>
         </div>
       </div>
@@ -185,12 +184,14 @@ function StatCard({ icon, label, value, unit, color }) {
 
 /* ── Styles ────────────────────────────────────────────────── */
 const containerStyle = {
-  position: 'relative',
+  position: 'fixed',
+  inset: 0,
   width: '100vw',
   height: '100vh',
   background: 'linear-gradient(135deg, #0a0e27 0%, #1a1a3e 50%, #0f1419 100%)',
   fontFamily: "'Orbitron', sans-serif",
   overflow: 'hidden',
+  zIndex: 10,
 }
 
 const bgOverlayStyle = {
@@ -201,6 +202,7 @@ const bgOverlayStyle = {
     radial-gradient(circle at 80% 50%, rgba(231, 76, 60, 0.08) 0%, transparent 50%)
   `,
   animation: 'pulse 8s ease-in-out infinite',
+  pointerEvents: 'none',
 }
 
 const contentWrapperStyle = {
@@ -212,7 +214,9 @@ const contentWrapperStyle = {
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '2rem',
+  padding: '1rem 2rem',
+  overflow: 'hidden',
+  boxSizing: 'border-box',
 }
 
 const headerSectionStyle = {
@@ -229,7 +233,7 @@ const headerLineStyle = {
 }
 
 const titleStyle = {
-  fontSize: '3rem',
+  fontSize: 'clamp(1.5rem, 3vw, 3rem)',
   color: '#fff',
   fontWeight: 900,
   letterSpacing: '0.3em',
@@ -244,7 +248,7 @@ const titleStyle = {
 const subtitleStyle = {
   color: '#888',
   fontFamily: "'Rajdhani', sans-serif",
-  marginBottom: '2.5rem',
+  marginBottom: '1rem',
   fontSize: '0.9rem',
   letterSpacing: '0.4em',
   textTransform: 'uppercase',
@@ -265,7 +269,7 @@ const glassPanelStyle = {
   backdropFilter: 'blur(20px)',
   border: '1px solid rgba(255, 255, 255, 0.1)',
   borderRadius: '24px',
-  padding: '2.5rem',
+  padding: '1.5rem 2rem',
   boxShadow: `
     0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1)
@@ -278,7 +282,7 @@ const glassPanelStyle = {
 const canvasContainerStyle = {
   position: 'relative',
   width: '100%',
-  height: '380px',
+  height: 'clamp(180px, 30vh, 380px)',
   borderRadius: '16px',
   overflow: 'hidden',
   marginBottom: '1.5rem',
@@ -340,9 +344,9 @@ const carDescStyle = {
 const statsGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, 1fr)',
-  gap: '1.5rem',
+  gap: '1rem',
   width: '100%',
-  marginBottom: '2rem',
+  marginBottom: '1rem',
 }
 
 const statCardStyle = {
@@ -413,7 +417,7 @@ const arrowBtnStyle = {
 const actionBtnsStyle = {
   display: 'flex',
   gap: '1.5rem',
-  marginTop: '2.5rem',
+  marginTop: '1rem',
 }
 
 const backBtnStyle = {

@@ -7,6 +7,7 @@ import audioManager from './audioManager'
 const Home       = lazy(() => import('./components/UI/Home'))
 const Garage     = lazy(() => import('./components/UI/Garage'))
 const Levels     = lazy(() => import('./components/UI/Levels'))
+const PreRace    = lazy(() => import('./components/UI/PreRace'))
 const HUD        = lazy(() => import('./components/UI/HUD'))
 const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
 
@@ -172,7 +173,7 @@ export default function App() {
   const screen = useGameStore((s) => s.screen)
 
   useEffect(() => {
-    if (screen === 'home' || screen === 'garage' || screen === 'levels') {
+    if (screen === 'home' || screen === 'garage' || screen === 'levels' || screen === 'prerace') {
       audioManager.playMenuMusic()
     }
   }, [screen])
@@ -195,6 +196,13 @@ export default function App() {
     return (
       <Suspense fallback={<PageLoader label="LEVELS" />}>
         <Levels /><MusicToggle />
+      </Suspense>
+    )
+
+  if (screen === 'prerace')
+    return (
+      <Suspense fallback={<PageLoader label="LOADING" />}>
+        <PreRace /><MusicToggle />
       </Suspense>
     )
 

@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense, lazy } from 'react'
 import useGameStore from '../../store'
 import audioManager from '../../audioManager'
+import SettingsOverlay from './SettingsOverlay'
+
+const HomeBg3D = lazy(() => import('./HomeBg3D'))
 
 export default function Home() {
   const setScreen = useGameStore((s) => s.setScreen)
+  const setShowSettings = useGameStore((s) => s.setShowSettings)
   const [hoverStart, setHoverStart] = useState(false)
   const [hoverGarage, setHoverGarage] = useState(false)
+  const [hoverSettings, setHoverSettings] = useState(false)
 
   // Try to play music when component mounts
   useEffect(() => {
@@ -24,16 +29,20 @@ export default function Home() {
     setScreen('garage')
   }
 
-  const handleEnableAudio = () => {
+  const handleSettings = () => {
     audioManager.enableAudio()
-    audioManager.playMenuMusic()
+    setShowSettings(true)
   }
 
   return (
     <div style={containerStyle}>
-      {/* Animated background layers */}
-      <div style={bgLayer1} />
-      <div style={bgLayer2} />
+      {/* 3D animated racing background */}
+      <Suspense fallback={null}>
+        <HomeBg3D />
+      </Suspense>
+
+      {/* Dark overlay for legibility */}
+      <div style={darkOverlay} />
       <div style={gridOverlay} />
 
       {/* Content */}
@@ -84,11 +93,13 @@ export default function Home() {
           <button
             style={{
               ...neonButton,
-              ...(hoverStart ? neonButtonHover('#888') : {}),
+              ...(hoverSettings ? neonButtonHover('#888') : {}),
             }}
-            onClick={handleEnableAudio}
+            onClick={handleSettings}
+            onMouseEnter={() => setHoverSettings(true)}
+            onMouseLeave={() => setHoverSettings(false)}
           >
-            MAP
+            SETTINGS
           </button>
         </div>
 
@@ -102,6 +113,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Settings Overlay */}
+      <SettingsOverlay />
     </div>
   )
 }
@@ -119,24 +133,25 @@ const containerStyle = {
   fontFamily: "'Orbitron', sans-serif",
 }
 
-const bgLayer1 = {
-  position: 'absolute',
-  inset: 0,
-  background: `
-    radial-gradient(ellipse 100% 80% at 0% 50%, rgba(0, 180, 255, 0.3) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 80% at 100% 50%, rgba(255, 50, 80, 0.35) 0%, transparent 50%)
-  `,
-}
+const bgLayer1 = { display: 'none' }
 
-const bgLayer2 = {
+const bgLayer2 = { display: 'none' }
+
+const darkOverlay = {
   position: 'absolute',
   inset: 0,
-  background: 'linear-gradient(to bottom, rgba(0, 0, 15, 0.6) 0%, rgba(5, 5, 20, 0.8) 50%, rgba(0, 0, 0, 0.9) 100%)',
+  zIndex: 1,
+  background: `
+    radial-gradient(ellipse 120% 70% at 50% 40%, transparent 30%, rgba(20, 5, 10, 0.65) 100%),
+    linear-gradient(to bottom, rgba(15, 5, 10, 0.1) 0%, rgba(15, 5, 10, 0.45) 60%, rgba(10, 2, 8, 0.8) 100%)
+  `,
+  pointerEvents: 'none',
 }
 
 const gridOverlay = {
   position: 'absolute',
   inset: 0,
+  zIndex: 1,
   backgroundImage: `
     repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 180, 255, 0.03) 2px, rgba(0, 180, 255, 0.03) 3px),
     repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255, 50, 80, 0.03) 2px, rgba(255, 50, 80, 0.03) 3px)
@@ -147,7 +162,7 @@ const gridOverlay = {
 
 const contentWrapper = {
   position: 'relative',
-  zIndex: 1,
+  zIndex: 2,
   height: '100%',
   display: 'flex',
   flexDirection: 'column',

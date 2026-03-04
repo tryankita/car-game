@@ -89,19 +89,30 @@ function genBuildings(frames, levelSeed) {
   const ACCENT = ['#ff4466','#00ccff','#ffaa00','#44ff88','#cc66ff','#ff6622']
   const GLASS  = ['#88bbdd','#6699bb','#aaccdd','#7799aa']
 
-  const MIN_CLEARANCE = WALL_D + 6
+  const MIN_CLEARANCE = WALL_D + 15
 
   function isSafe(bx, bz, bw, bd) {
-    const halfW = bw / 2 + 1
-    const halfD = bd / 2 + 1
-    const corners = [
+    const halfW = bw / 2 + 2
+    const halfD = bd / 2 + 2
+    
+    // Check center and corners
+    const checkPoints = [
       [bx, bz],
       [bx - halfW, bz - halfD],
       [bx + halfW, bz - halfD],
       [bx - halfW, bz + halfD],
       [bx + halfW, bz + halfD],
     ]
-    for (const [cx, cz] of corners) {
+    
+    // Add edge midpoints for better coverage
+    checkPoints.push(
+      [bx - halfW, bz],
+      [bx + halfW, bz],
+      [bx, bz - halfD],
+      [bx, bz + halfD]
+    )
+    
+    for (const [cx, cz] of checkPoints) {
       const info = nearestTrackInfo(cx, cz)
       if (Math.abs(info.signedDist) < MIN_CLEARANCE) return false
     }
@@ -292,21 +303,56 @@ function Bld({ b, winMat, neonMat }) {
   )
 }
 
-/* ── Streetlight (responds to day/night) ───────────────────── */
-function Lamp({ pos, nightFactor }) {
-  const glow = nightFactor > 0.3
+/* ── Streetlight (self-contained day/night reaction) ──────── */
+function Lamp({ pos }) {
+  const bulbMatRef = useRef()
+  const lightRef   = useRef()
+
+  useFrame(({ clock }) => {
+    const t    = (clock.getElapsedTime() / CYCLE_DUR) % 1
+    const dayF = THREE.MathUtils.clamp(Math.sin(t * TWO_PI) * 1.3 + 0.15, 0, 1)
+    const nf   = 1 - dayF
+    const glow = nf > 0.3
+    if (bulbMatRef.current) {
+      bulbMatRef.current.emissive.set(glow ? '#ffd060' : '#221800')
+      bulbMatRef.current.emissiveIntensity = glow
+        ? THREE.MathUtils.lerp(0.1, 1.2, (nf - 0.3) / 0.7)
+        : 0.04
+    }
+    if (lightRef.current) {
+      lightRef.current.intensity = glow
+        ? THREE.MathUtils.lerp(0, 1.2, (nf - 0.3) / 0.7)
+        : 0
+    }
+  })
+
   return (
     <group position={pos}>
+      {/* Pole */}
       <mesh position={[0, 3.5, 0]} castShadow>
         <cylinderGeometry args={[0.08, 0.12, 7, 6]} />
         <meshStandardMaterial color="#666" metalness={0.8} roughness={0.3} />
       </mesh>
-      <mesh position={[0, 7.2, 0]}>
-        <sphereGeometry args={[0.3, 8, 8]} />
-        <meshStandardMaterial color="#ffe" emissive={glow ? '#ffd' : '#332'}
-          emissiveIntensity={glow ? 0.8 : 0.05} />
+      {/* Arm */}
+      <mesh position={[0.6, 7.1, 0]} rotation={[0, 0, -Math.PI / 8]}>
+        <cylinderGeometry args={[0.045, 0.045, 1.3, 5]} />
+        <meshStandardMaterial color="#555" metalness={0.8} />
       </mesh>
-      {glow && <pointLight position={[0, 7, 0]} intensity={0.5} distance={30} color="#ffeedd" />}
+      {/* Lamp head housing */}
+      <mesh position={[1.1, 7.4, 0]}>
+        <boxGeometry args={[0.55, 0.22, 0.55]} />
+        <meshStandardMaterial color="#444" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* Bulb */}
+      <mesh position={[1.1, 7.28, 0]}>
+        <sphereGeometry args={[0.16, 8, 8]} />
+        <meshStandardMaterial ref={bulbMatRef} color="#ffe8a0"
+          emissive="#221800" emissiveIntensity={0.04} />
+      </mesh>
+      {/* Light source */}
+      <pointLight ref={lightRef}
+        position={[1.1, 7.1, 0]}
+        intensity={0} distance={40} color="#ffd580" />
     </group>
   )
 }
@@ -550,7 +596,7 @@ export default function Track() {
       </group>
 
       {/* Streetlights */}
-      {lamps.map((pos, i) => <Lamp key={`l${i}`} pos={pos} nightFactor={nightFRef.current} />)}
+      {lamps.map((pos, i) => <Lamp key={`l${i}`} pos={pos} />)}
 
       {/* Buildings */}
       {blds.map((b, i) => <Bld key={`b${i}`} b={b} winMat={winMat} neonMat={neonMat} />)}

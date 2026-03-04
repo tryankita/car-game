@@ -3,7 +3,7 @@ import * as THREE from 'three'
 /* ═══════════════════════════════════════════════════════════════
    Shared track geometry data — used by Track.jsx (visuals)
    and Car.jsx (collision).
-   Supports 10 levels with progressive difficulty.
+   Supports 50 levels with progressive difficulty.
    ═══════════════════════════════════════════════════════════════ */
 
 // ── Level track configurations ──────────────────────────────
@@ -13,7 +13,8 @@ import * as THREE from 'three'
 //    sfRange  – ± range for lap detection on X axis
 //    sfLeaveZ – how far from z=0 car must travel before a lap counts
 
-export const LEVEL_TRACKS = [
+// ── 10 hand-crafted base tracks ─────────────────────────────
+const BASE_TRACKS = [
   /* ── Level 1: Rookie Run – L-shaped kink ────────────────── */
   {
     cp: [
@@ -25,7 +26,24 @@ export const LEVEL_TRACKS = [
     spawn: [120, -5], sfX: 120, sfRange: 15, sfLeaveZ: 30,
   },
 
-  /* ── Level 2: City Circuit – P-shaped hook ──────────────── */
+  /* ── Level 2: City Circuit – P-shaped hook ────────────────
+ 
+jkj kjh kjh khkhjfgkuf uyfiu fiufiuyfi uyfiuyfiuyf  iufiuyfiu yfu iyfuiyfiuy ffiufufifiuf uf
+
+dgsgs dg d s sg sdg sd gsd dsg ds gd dfg dfg dfgdfdfhfhdhgfng gg gh gh hg g g
+
+gfouomumuouuii u  ouoo  uo  uo uoyyftyutnt rturtrtut tru rty rtyu uurutyuur rtutyurtr ty yyyyyyyyyy y  y ruy
+
+greg erge rgergerg eg erg egeg ergerge r ergeregr45er r erg rg e er ergefwfvervevewvevevkrnvje kj vkjev  gthih this the main part oof the mlsit is that it iwas the best way to describe that i was only  falling the last four mounth int hemin paet idt hy this is the tetete the t hte the the the teh eth eth ethet et eth eteth eth eth eth eth teth thet th teht teh teh eth eth eth th eth teh tht teh the the th eth efdg dfg dsg sdf hfdh sdfh sdfh sdhsdfh d
+  */
+
+
+
+
+
+
+
+
   {
     cp: [
       [130, -15],  [130, 85],
@@ -154,6 +172,54 @@ export const LEVEL_TRACKS = [
     spawn: [150, -5], sfX: 150, sfRange: 15, sfLeaveZ: 40,
   },
 ]
+
+/* ── Procedurally generate levels 11-50 from the 10 base tracks ──
+   Each set of 10 uses a different transform:
+     11-20: mirrored X + scaled 1.1
+     21-30: rotated 90° + scaled 1.15
+     31-40: mirrored Z + scaled 1.2
+     41-50: rotated ~45° + scaled 1.3
+*/
+function transformTrack(base, scale, angleDeg, mirrorX, mirrorZ) {
+  const a = (angleDeg * Math.PI) / 180
+  const cosA = Math.cos(a), sinA = Math.sin(a)
+  const mX = mirrorX ? -1 : 1
+  const mZ = mirrorZ ? -1 : 1
+
+  const transformPt = ([x, z]) => {
+    const sx = x * scale * mX
+    const sz = z * scale * mZ
+    const rx = sx * cosA - sz * sinA
+    const rz = sx * sinA + sz * cosA
+    return [Math.round(rx), Math.round(rz)]
+  }
+
+  const newCp = base.cp.map(transformPt)
+  const newSpawn = transformPt(base.spawn)
+  return {
+    cp: newCp,
+    spawn: newSpawn,
+    sfX: newSpawn[0],
+    sfRange: base.sfRange,
+    sfLeaveZ: Math.round(base.sfLeaveZ * scale),
+  }
+}
+
+const TRANSFORMS = [
+  { scale: 1.1,  angle: 0,   mX: true,  mZ: false }, // 11-20
+  { scale: 1.15, angle: 90,  mX: false, mZ: false },  // 21-30
+  { scale: 1.2,  angle: 0,   mX: false, mZ: true },   // 31-40
+  { scale: 1.3,  angle: 45,  mX: false, mZ: false },  // 41-50
+]
+
+export const LEVEL_TRACKS = [...BASE_TRACKS]
+
+for (let batch = 0; batch < 4; batch++) {
+  const t = TRANSFORMS[batch]
+  for (let i = 0; i < 10; i++) {
+    LEVEL_TRACKS.push(transformTrack(BASE_TRACKS[i], t.scale, t.angle, t.mX, t.mZ))
+  }
+}
 
 // ── Track dimension constants (same for all levels) ─────────
 export const ROAD_W  = 22

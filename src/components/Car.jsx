@@ -79,6 +79,85 @@ function CarModel({ color }) {
 // Preload the model
 useGLTF.preload(MODEL_PATH)
 
+/* ── Vehicle Lights (headlights + taillights, night-reactive) ─ */
+function CarLights({ velocityRef }) {
+  const hlLRef    = useRef()   // headlight point light left
+  const hlRRef    = useRef()   // headlight point light right
+  const hlMatLRef = useRef()   // headlight bulb material left
+  const hlMatRRef = useRef()   // headlight bulb material right
+  const tlMatLRef = useRef()   // taillight material left
+  const tlMatRRef = useRef()   // taillight material right
+  const tlLRef    = useRef()   // taillight point light left
+  const tlRRef    = useRef()   // taillight point light right
+
+  useFrame(({ clock }) => {
+    const t    = (clock.getElapsedTime() / 90) % 1
+    const dayF = THREE.MathUtils.clamp(Math.sin(t * Math.PI * 2) * 1.3 + 0.15, 0, 1)
+    const nf   = 1 - dayF
+    const isNight = nf > 0.3
+
+    // Headlights on at night
+    const headI = isNight ? THREE.MathUtils.lerp(0, 3.5, (nf - 0.3) / 0.7) : 0
+    if (hlLRef.current)    hlLRef.current.intensity    = headI
+    if (hlRRef.current)    hlRRef.current.intensity    = headI
+    if (hlMatLRef.current) hlMatLRef.current.emissiveIntensity = isNight ? 2.5 : 0.04
+    if (hlMatRRef.current) hlMatRRef.current.emissiveIntensity = isNight ? 2.5 : 0.04
+
+    // Taillights always on (brighter when going)
+    const speed  = velocityRef ? Math.abs(velocityRef.current) : 0
+    const tailI  = 0.5 + (speed > 0.1 ? 0.8 : 0)
+    const tailEI = 0.8 + (speed > 0.1 ? 1.2 : 0)
+    if (tlLRef.current)    tlLRef.current.intensity    = tailI
+    if (tlRRef.current)    tlRRef.current.intensity    = tailI
+    if (tlMatLRef.current) tlMatLRef.current.emissiveIntensity = tailEI
+    if (tlMatRRef.current) tlMatRRef.current.emissiveIntensity = tailEI
+  })
+
+  return (
+    <group>
+      {/* ── Headlight bulbs (front face) ─────────────────── */}
+      <mesh position={[-0.72, 0.88, 2.12]}>
+        <circleGeometry args={[0.17, 10]} />
+        <meshStandardMaterial ref={hlMatLRef}
+          color="#ffffdd" emissive="#ffffdd" emissiveIntensity={0.04} />
+      </mesh>
+      <mesh position={[0.72, 0.88, 2.12]}>
+        <circleGeometry args={[0.17, 10]} />
+        <meshStandardMaterial ref={hlMatRRef}
+          color="#ffffdd" emissive="#ffffdd" emissiveIntensity={0.04} />
+      </mesh>
+
+      {/* ── Headlight point lights aimed forward ─────────── */}
+      <pointLight ref={hlLRef}
+        position={[-0.72, 0.88, 4]}
+        intensity={0} color="#fff8e0" distance={45} />
+      <pointLight ref={hlRRef}
+        position={[0.72, 0.88, 4]}
+        intensity={0} color="#fff8e0" distance={45} />
+
+      {/* ── Taillight lens (rear face) ────────────────────── */}
+      <mesh position={[-0.65, 0.88, -2.14]}>
+        <boxGeometry args={[0.38, 0.14, 0.04]} />
+        <meshStandardMaterial ref={tlMatLRef}
+          color="#cc0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[0.65, 0.88, -2.14]}>
+        <boxGeometry args={[0.38, 0.14, 0.04]} />
+        <meshStandardMaterial ref={tlMatRRef}
+          color="#cc0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+
+      {/* ── Taillight glow ────────────────────────────────── */}
+      <pointLight ref={tlLRef}
+        position={[-0.65, 0.88, -2.5]}
+        intensity={0.5} color="#ff2200" distance={10} />
+      <pointLight ref={tlRRef}
+        position={[0.65, 0.88, -2.5]}
+        intensity={0.5} color="#ff2200" distance={10} />
+    </group>
+  )
+}
+
 /* ── Main Car component ────────────────────────────────────── */
 export default function Car() {
   const carRef = useRef()
@@ -94,6 +173,8 @@ export default function Car() {
   const cars = useGameStore((s) => s.cars)
   const raceStarted = useGameStore((s) => s.raceStarted)
   const raceFinished = useGameStore((s) => s.raceFinished)
+  const paused = useGameStore((s) => s.paused)
+  const keybinds = useGameStore((s) => s.keybinds)
   const setSpeed = useGameStore((s) => s.setSpeed)
   const setRaceTime = useGameStore((s) => s.setRaceTime)
   const setCarPosition = useGameStore((s) => s.setCarPosition)
@@ -125,7 +206,7 @@ export default function Car() {
   /* Reset on car change or level change */
   useEffect(() => {
     if (carRef.current) {
-      carRef.current.position.set(track.spawn[0], 0.1, track.spawn[1])
+      carRef.current.position.set(track.spawn[0], 0.5, track.spawn[1])
       carRef.current.rotation.set(0, 0, 0)
       velocity.current = 0
       prevZ.current = track.spawn[1]
@@ -147,7 +228,7 @@ export default function Car() {
     camera.position.lerp(car.position.clone().add(camOff), 4 * dt)
     camera.lookAt(car.position.x, 1, car.position.z)
 
-    if (!raceStarted || raceFinished) return
+    if (!raceStarted || raceFinished || paused) return
 
     // Record race start time
     if (raceStartTimeRef.current === 0) {
@@ -157,12 +238,12 @@ export default function Car() {
 
     const { topSpeed, handling, acceleration: accel } = carConfig
 
-    // --- Input ---
-    const fwd = pressedKeys['KeyW'] || pressedKeys['ArrowUp']
-    const back = pressedKeys['KeyS'] || pressedKeys['ArrowDown']
-    const left = pressedKeys['KeyA'] || pressedKeys['ArrowLeft']
-    const right = pressedKeys['KeyD'] || pressedKeys['ArrowRight']
-    const brake = pressedKeys['Space']
+    // --- Input (using customizable keybinds) ---
+    const fwd = pressedKeys[keybinds.forward] || pressedKeys['ArrowUp']
+    const back = pressedKeys[keybinds.backward] || pressedKeys['ArrowDown']
+    const left = pressedKeys[keybinds.left] || pressedKeys['ArrowLeft']
+    const right = pressedKeys[keybinds.right] || pressedKeys['ArrowRight']
+    const brake = pressedKeys[keybinds.brake]
 
     // Acceleration
     if (fwd) velocity.current += accel * dt
@@ -179,7 +260,7 @@ export default function Car() {
     if (Math.abs(velocity.current) < 0.05) velocity.current = 0
 
     // Keep car above ground
-    if (car.position.y < 0.1) car.position.y = 0.1
+    if (car.position.y < 0.5) car.position.y = 0.5
 
     // Steering
     const speedRatio = Math.abs(velocity.current) / topSpeed
@@ -191,7 +272,7 @@ export default function Car() {
     // Movement
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
     car.position.addScaledVector(forward, velocity.current * dt)
-    car.position.y = 0.1
+    car.position.y = 0.5
 
     // ── Barrier collision (slide along walls) ────────────────
     const info = nearestTrackInfo(car.position.x, car.position.z)
@@ -250,8 +331,9 @@ export default function Car() {
   })
 
   return (
-    <group ref={carRef} position={[track.spawn[0], 0.1, track.spawn[1]]}>
+    <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
       <CarModel color={carConfig.color} />
+      <CarLights velocityRef={velocity} />
     </group>
   )
 }
