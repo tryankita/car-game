@@ -4,6 +4,7 @@ import audioManager from '../../audioManager'
 
 export default function RaceFinish() {
   const raceFinished = useGameStore((s) => s.raceFinished)
+  const timeFailed = useGameStore((s) => s.timeFailed)
   const selectedLevel = useGameStore((s) => s.selectedLevel)
   const levels = useGameStore((s) => s.levels)
   const bestLap = useGameStore((s) => s.bestLap)
@@ -12,18 +13,19 @@ export default function RaceFinish() {
   const setScreen = useGameStore((s) => s.setScreen)
   const startRace = useGameStore((s) => s.startRace)
   const goHome = useGameStore((s) => s.goHome)
+  const lastRaceReward = useGameStore((s) => s.lastRaceReward)
 
   const [levelCompleted, setLevelCompleted] = useState(false)
   const level = levels.find(l => l.id === selectedLevel)
-  const stars = calculateStars()
+  const stars = timeFailed ? 0 : calculateStars()
 
   useEffect(() => {
-    if (raceFinished && !levelCompleted) {
-      // Complete the level when race finishes (only once)
+    if (raceFinished && !levelCompleted && !timeFailed) {
+      // Complete the level when race finishes (only once, not on time-out)
       completeLevel()
       setLevelCompleted(true)
     }
-  }, [raceFinished, levelCompleted])
+  }, [raceFinished, levelCompleted, timeFailed])
 
   const handleNextLevel = () => {
     audioManager.stopRaceMusic()
@@ -55,49 +57,103 @@ export default function RaceFinish() {
       
       <div style={cardStyle}>
         {/* Title */}
-        <h1 style={titleStyle}>RACE COMPLETE</h1>
+        <h1 style={{
+          ...titleStyle,
+          color: timeFailed ? '#ff4444' : '#ffffff',
+          textShadow: timeFailed
+            ? '0 0 20px rgba(255, 50, 50, 0.6)'
+            : '0 0 20px rgba(0, 180, 255, 0.6)',
+        }}>
+          {timeFailed ? 'TIME\'S UP!' : 'RACE COMPLETE'}
+        </h1>
 
         {/* Level name */}
         <div style={levelNameStyle}>{level?.name}</div>
 
-        {/* Stars */}
-        <div style={starsDisplayStyle}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{...starStyle, opacity: i <= stars ? 1 : 0.2}}>
-              ★
-            </div>
-          ))}
-        </div>
+        {/* Stars (hidden on time fail) */}
+        {!timeFailed && (
+          <div style={starsDisplayStyle}>
+            {[1, 2, 3].map((i) => (
+              <div key={i} style={{...starStyle, opacity: i <= stars ? 1 : 0.2}}>
+                ★
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Time-out message */}
+        {timeFailed && (
+          <div style={{
+            fontSize: '1.2rem',
+            color: '#ff6666',
+            fontWeight: 700,
+            textAlign: 'center',
+            marginTop: '0.5rem',
+          }}>
+            You ran out of time!<br />
+            <span style={{ fontSize: '0.85rem', color: '#aaa', fontWeight: 400 }}>
+              Drive faster and brake less to beat the clock.
+            </span>
+          </div>
+        )}
 
         {/* Stats */}
         <div style={statsStyle}>
           <div style={statItem}>
             <div style={statLabel}>Best Lap</div>
-            <div style={statValue}>{bestLap.toFixed(2)}s</div>
+            <div style={statValue}>
+              {isFinite(bestLap) ? bestLap.toFixed(2) + 's' : '--'}
+            </div>
           </div>
         </div>
 
-        {/* Star message */}
-        <div style={messageStyle}>
-          {stars === 3 && '🏆 PERFECT PERFORMANCE! 🏆'}
-          {stars === 2 && '⭐ GREAT JOB! ⭐'}
-          {stars === 1 && '✓ LEVEL COMPLETED'}
-        </div>
+        {/* Star message (only on success) */}
+        {!timeFailed && (
+          <div style={messageStyle}>
+            {stars === 3 && '🏆 PERFECT PERFORMANCE! 🏆'}
+            {stars === 2 && '⭐ GREAT JOB! ⭐'}
+            {stars === 1 && '✓ LEVEL COMPLETED'}
+          </div>
+        )}
+
+        {/* Reward (only on success) */}
+        {levelCompleted && !timeFailed && (
+          <div style={{
+            fontSize: '24px',
+            color: '#ffd700',
+            fontWeight: 'bold',
+            marginTop: '15px',
+            textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+          }}>
+            +{lastRaceReward} COINS
+          </div>
+        )}
+
+        {/* No reward message on fail */}
+        {timeFailed && (
+          <div style={{
+            fontSize: '0.85rem',
+            color: '#666',
+            marginTop: '0.5rem',
+          }}>
+            No coins awarded — try again!
+          </div>
+        )}
 
         {/* Buttons */}
         <div style={buttonsStyle}>
           <button style={retryBtn} onClick={handleRetry}>
             ↻ RETRY
           </button>
-          {selectedLevel < 10 ? (
+          {!timeFailed && selectedLevel < 10 ? (
             <button style={nextBtn} onClick={handleNextLevel}>
               NEXT LEVEL →
             </button>
-          ) : (
+          ) : !timeFailed ? (
             <button style={nextBtn} onClick={handleHome}>
               ALL LEVELS CLEARED! →
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Home button */}

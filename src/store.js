@@ -7,16 +7,20 @@ function loadProgress() {
   try {
     const saved = localStorage.getItem('carRacingProgress')
     if (saved) {
-      const { completedLevels, levelStars } = JSON.parse(saved)
-      return { completedLevels: completedLevels || [1], levelStars: levelStars || {} }
+      const { completedLevels, levelStars, coins } = JSON.parse(saved)
+      return { 
+        completedLevels: completedLevels || [1], 
+        levelStars: levelStars || {},
+        coins: coins || 0 
+      }
     }
   } catch (e) { /* ignore */ }
-  return { completedLevels: [1], levelStars: {} }
+  return { completedLevels: [1], levelStars: {}, coins: 0 }
 }
 
-function saveProgress(completedLevels, levelStars) {
+function saveProgress(completedLevels, levelStars, coins) {
   try {
-    localStorage.setItem('carRacingProgress', JSON.stringify({ completedLevels, levelStars }))
+    localStorage.setItem('carRacingProgress', JSON.stringify({ completedLevels, levelStars, coins }))
   } catch (e) { /* ignore */ }
 }
 
@@ -68,22 +72,22 @@ const savedSettings = loadSettings()
 
 const _starCache = {}
 
-// Difficulty → speed multiplier  (higher = faster expected pace → tighter times)
+// Difficulty → expected avg speed (world-units/s) for an experienced player
 const DIFF_SPEED = {
-  'Easy':      18,
-  'Medium':    22,
-  'Hard':      26,
-  'Very Hard': 30,
-  'Extreme':   34,
+  'Easy':      22,
+  'Medium':    26,
+  'Hard':      30,
+  'Very Hard': 34,
+  'Extreme':   38,
 }
 
+// Tighter star cut-offs: 3-star = clean fast, 2-star = a few mistakes
 export function getStarThresholds(levelId, difficulty) {
   const key = `${levelId}_${difficulty}`
   if (_starCache[key]) return _starCache[key]
 
-  // Compute the track's perimeter in world-units
   const trackCfg = LEVEL_TRACKS[levelId - 1]
-  let trackLength = 600 // fallback
+  let trackLength = 600
   if (trackCfg) {
     try {
       const curve = makeCurve(trackCfg.cp)
@@ -91,20 +95,42 @@ export function getStarThresholds(levelId, difficulty) {
     } catch { /* use fallback */ }
   }
 
-  const avgSpeed = DIFF_SPEED[difficulty] || 24
-  // Base lap time at "average" speed for this difficulty
+  const avgSpeed = DIFF_SPEED[difficulty] || 26
   const baseLap = Math.round(trackLength / avgSpeed)
 
-  // 3-star  = base time  (clean fast driving)
-  // 2-star  = base × 1.5 (moderate driving with mistakes)
-  // 1-star  = just finish the race
   const result = {
-    s3: Math.max(15, baseLap),
-    s2: Math.max(25, Math.round(baseLap * 1.5)),
+    s3: Math.max(12, Math.round(baseLap * 0.85)),   // tight — needs near-perfect driving
+    s2: Math.max(18, Math.round(baseLap * 1.15)),   // moderate — small mistakes OK
   }
 
   _starCache[key] = result
   return result
+}
+
+// Time limit for the whole race (all laps combined), by difficulty
+// These are tight: you need consistent clean laps to not run out of time.
+const _timeLimitCache = {}
+export function getRaceTimeLimit(levelId, difficulty, totalLaps) {
+  const key = `${levelId}_${difficulty}_${totalLaps}`
+  if (_timeLimitCache[key]) return _timeLimitCache[key]
+
+  const trackCfg = LEVEL_TRACKS[levelId - 1]
+  let trackLength = 600
+  if (trackCfg) {
+    try {
+      const curve = makeCurve(trackCfg.cp)
+      trackLength = curve.getLength()
+    } catch { /* use fallback */ }
+  }
+
+  const avgSpeed = DIFF_SPEED[difficulty] || 26
+  // Give a multiplier based on level — early levels (1-6) get more breathing room
+  const timeMult = levelId <= 6 ? 1.6 : 1.3
+  const lapTime = trackLength / avgSpeed
+  const limit = Math.round(lapTime * totalLaps * timeMult)
+
+  _timeLimitCache[key] = Math.max(30, limit)
+  return _timeLimitCache[key]
 }
 
 const useGameStore = create((set, get) => ({
@@ -115,6 +141,8 @@ const useGameStore = create((set, get) => ({
   selectedLevel: 1,
   completedLevels: savedProgress.completedLevels,
   levelStars: savedProgress.levelStars,
+  coins: savedProgress.coins,
+  lastRaceReward: 0,
   levels: [
     { id: 1,  name: 'Rookie Run',        difficulty: 'Easy',      laps: 2, topSpeed: 40 },
     { id: 2,  name: 'City Circuit',       difficulty: 'Easy',      laps: 2, topSpeed: 42 },
@@ -181,10 +209,10 @@ const useGameStore = create((set, get) => ({
   // --- Car selection ---
   selectedCar: 0,
   cars: [
-    { name: 'Speedster', color: '#e74c3c', topSpeed: 55, handling: 3.2, acceleration: 28, description: 'Built for pure speed' },
-    { name: 'Phantom', color: '#3498db', topSpeed: 48, handling: 4.0, acceleration: 22, description: 'Best handling on the track' },
-    { name: 'Viper', color: '#2ecc71', topSpeed: 60, handling: 2.8, acceleration: 32, description: 'Raw acceleration power' },
-    { name: 'Shadow', color: '#9b59b6', topSpeed: 52, handling: 3.5, acceleration: 26, description: 'Balanced all-rounder' },
+    { name: 'Speedster', color: '#e74c3c', topSpeed: 55, handling: 3.2, acceleration: 28, description: 'Built for pure speed', model: '/models/muscle_car.glb', scale: 1.5, previewScale: 0.9, modelRotY: 0, modelPosY: 0.35 },
+    { name: 'Phantom', color: '#3498db', topSpeed: 48, handling: 4.0, acceleration: 22, description: 'Best handling on the track', model: '/models/sport_car.glb', scale: 0.28, previewScale: 0.22, modelRotY: -Math.PI / 2, modelPosY: 0.0 },
+    { name: 'Viper', color: '#2ecc71', topSpeed: 60, handling: 2.8, acceleration: 32, description: 'Raw acceleration power', model: '/models/muscle_car.glb', scale: 1.5, previewScale: 0.9, modelRotY: 0, modelPosY: 0.35 },
+    { name: 'Shadow', color: '#9b59b6', topSpeed: 52, handling: 3.5, acceleration: 26, description: 'Balanced all-rounder', model: '/models/muscle_car.glb', scale: 1.5, previewScale: 0.9, modelRotY: 0, modelPosY: 0.35 },
   ],
 
   // --- Race state ---
@@ -192,6 +220,8 @@ const useGameStore = create((set, get) => ({
   carRotation: 0,
   speed: 0,
   raceTime: 0,
+  raceTimeLimit: 120,
+  timeFailed: false,
   currentLap: 0,
   totalLaps: 3,
   bestLap: Infinity,
@@ -206,23 +236,40 @@ const useGameStore = create((set, get) => ({
   selectCar: (idx) => set({ selectedCar: idx }),
   selectLevel: (levelId) => set({ selectedLevel: levelId }),
   setSpeed: (speed) => set({ speed }),
-  setRaceTime: (t) => set({ raceTime: t }),
+  setRaceTime: (t) => {
+    const s = get()
+    if (s.raceFinished || s.timeFailed) return
+    set({ raceTime: t })
+    // Check time-out
+    if (t >= s.raceTimeLimit && s.raceStarted && !s.raceFinished) {
+      set({ timeFailed: true, raceFinished: true })
+    }
+  },
   setCarPosition: (x, z, ry) => set({ carPosition: { x, z }, carRotation: ry }),
 
   startRace: () => {
     const level = get().levels.find(l => l.id === get().selectedLevel)
+    const laps = level ? level.laps : 3
+    const timeLimit = getRaceTimeLimit(
+      get().selectedLevel,
+      level ? level.difficulty : 'Easy',
+      laps
+    )
     set({
       screen: 'prerace',
       speed: 0,
       raceTime: 0,
+      raceTimeLimit: timeLimit,
+      timeFailed: false,
       currentLap: 0,
-      totalLaps: level ? level.laps : 3,
+      totalLaps: laps,
       bestLap: Infinity,
       lapTimes: [],
       raceStarted: false,
       raceFinished: false,
       paused: false,
       countdown: 3,
+      lastRaceReward: 0,
     })
   },
 
@@ -276,12 +323,18 @@ const useGameStore = create((set, get) => ({
     const newCompletedArr = Array.from(newCompleted)
     const newLevelStars = { ...s.levelStars, [levelId]: stars }
 
+    // Reward coins
+    const reward = stars * 50
+    const newCoins = (s.coins || 0) + reward
+
     // Save to localStorage
-    saveProgress(newCompletedArr, newLevelStars)
+    saveProgress(newCompletedArr, newLevelStars, newCoins)
 
     set({
       completedLevels: newCompletedArr,
       levelStars: newLevelStars,
+      coins: newCoins,
+      lastRaceReward: reward,
     })
   },
 

@@ -7,6 +7,7 @@ import {
   setActiveLevel, getActiveTrack,
   makeCurve, sampleFrames, nearestTrackInfo,
 } from '../trackData'
+import { nightFactorRef } from './Lighting'
 
 /* ═══════════════════════════════════════════════════════════════
    FORMULA-STYLE GRAND PRIX CIRCUIT  (visuals only)
@@ -171,10 +172,6 @@ function genBuildings(frames, levelSeed) {
   return list
 }
 
-// ── Day/night cycle helper (same constant as Lighting.jsx) ─
-const CYCLE_DUR = 90
-const TWO_PI = Math.PI * 2
-
 // ── Sub-components ─────────────────────────────────────────
 
 /* ── Cinematic Building ─────────────────────────────────────── */
@@ -303,27 +300,18 @@ function Bld({ b, winMat, neonMat }) {
   )
 }
 
-/* ── Streetlight (self-contained day/night reaction) ──────── */
+/* ── Streetlight — self-contained, reads nightFactorRef each frame ── */
 function Lamp({ pos }) {
-  const bulbMatRef = useRef()
-  const lightRef   = useRef()
+  const bulbRef  = useRef()
+  const lightRef = useRef()
 
-  useFrame(({ clock }) => {
-    const t    = (clock.getElapsedTime() / CYCLE_DUR) % 1
-    const dayF = THREE.MathUtils.clamp(Math.sin(t * TWO_PI) * 1.3 + 0.15, 0, 1)
-    const nf   = 1 - dayF
+  useFrame(() => {
+    const nf   = nightFactorRef.current
     const glow = nf > 0.3
-    if (bulbMatRef.current) {
-      bulbMatRef.current.emissive.set(glow ? '#ffd060' : '#221800')
-      bulbMatRef.current.emissiveIntensity = glow
-        ? THREE.MathUtils.lerp(0.1, 1.2, (nf - 0.3) / 0.7)
-        : 0.04
-    }
-    if (lightRef.current) {
-      lightRef.current.intensity = glow
-        ? THREE.MathUtils.lerp(0, 1.2, (nf - 0.3) / 0.7)
-        : 0
-    }
+    const bulbEI = glow ? THREE.MathUtils.lerp(0, 5.0, (nf - 0.3) / 0.7) : 0
+    const lampI  = glow ? THREE.MathUtils.lerp(0, 4.5, (nf - 0.3) / 0.7) : 0
+    if (bulbRef.current)  bulbRef.current.emissiveIntensity  = bulbEI
+    if (lightRef.current) lightRef.current.intensity = lampI
   })
 
   return (
@@ -343,16 +331,13 @@ function Lamp({ pos }) {
         <boxGeometry args={[0.55, 0.22, 0.55]} />
         <meshStandardMaterial color="#444" metalness={0.6} roughness={0.4} />
       </mesh>
-      {/* Bulb */}
+      {/* Bulb — no emissiveIntensity prop, driven by useFrame */}
       <mesh position={[1.1, 7.28, 0]}>
         <sphereGeometry args={[0.16, 8, 8]} />
-        <meshStandardMaterial ref={bulbMatRef} color="#ffe8a0"
-          emissive="#221800" emissiveIntensity={0.04} />
+        <meshStandardMaterial ref={bulbRef} color="#ffe8a0" emissive="#ffe8a0" />
       </mesh>
-      {/* Light source */}
-      <pointLight ref={lightRef}
-        position={[1.1, 7.1, 0]}
-        intensity={0} distance={40} color="#ffd580" />
+      {/* Light source — no intensity prop, driven by useFrame */}
+      <pointLight ref={lightRef} position={[1.1, 7.0, 0]} distance={50} color="#ffd580" />
     </group>
   )
 }
@@ -377,14 +362,9 @@ export default function Track() {
   const neonMat = useMemo(() => new THREE.MeshStandardMaterial({
     color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 1.5,
   }), [])
-  const nightFRef = useRef(0)
 
   useFrame(({ clock }) => {
-    const t = (clock.getElapsedTime() / CYCLE_DUR) % 1
-    const dayF = THREE.MathUtils.clamp(Math.sin(t * TWO_PI) * 1.3 + 0.15, 0, 1)
-    const nf = 1 - dayF  // night factor
-
-    nightFRef.current = nf
+    const nf = nightFactorRef.current
 
     // Windows glow brighter at night
     winMat.emissiveIntensity = THREE.MathUtils.lerp(0.05, 0.8, nf)
@@ -595,8 +575,10 @@ export default function Track() {
         ))}
       </group>
 
-      {/* Streetlights */}
-      {lamps.map((pos, i) => <Lamp key={`l${i}`} pos={pos} />)}
+      {/* Streetlights — each self-contained with own useFrame */}
+      {lamps.map((pos, i) => (
+        <Lamp key={`l${i}`} pos={pos} />
+      ))}
 
       {/* Buildings */}
       {blds.map((b, i) => <Bld key={`b${i}`} b={b} winMat={winMat} neonMat={neonMat} />)}

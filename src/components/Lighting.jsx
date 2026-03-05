@@ -3,8 +3,11 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 /* ── Day / Night cycle constants ────────────────────────────── */
-const CYCLE_DURATION = 90          // seconds for a full day + night
+export const CYCLE_DURATION = 90   // seconds for a full day + night
 const TWO_PI = Math.PI * 2
+
+// Shared night factor — written here, read by Lamp / CarLights
+export const nightFactorRef = { current: 0.85 }
 
 // Color helpers
 const dayAmbient   = new THREE.Color('#e8e0d4')
@@ -35,6 +38,7 @@ export default function Lighting() {
 
     // Day factor: 1 at noon, 0 at midnight, smooth
     const dayF = THREE.MathUtils.clamp(Math.sin(sunAngle) * 1.3 + 0.15, 0, 1)
+    nightFactorRef.current = 1 - dayF
 
     if (dirRef.current) {
       dirRef.current.position.set(sunX, Math.max(sunY, 5), sunZ)

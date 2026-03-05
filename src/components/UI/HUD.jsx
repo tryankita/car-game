@@ -116,6 +116,8 @@ const minimapLabel = {
 export default function HUD() {
   const speed = useGameStore((s) => s.speed)
   const raceTime = useGameStore((s) => s.raceTime)
+  const raceTimeLimit = useGameStore((s) => s.raceTimeLimit)
+  const timeFailed = useGameStore((s) => s.timeFailed)
   const currentLap = useGameStore((s) => s.currentLap)
   const totalLaps = useGameStore((s) => s.totalLaps)
   const bestLap = useGameStore((s) => s.bestLap)
@@ -130,6 +132,11 @@ export default function HUD() {
   const musicVolume = useGameStore((s) => s.musicVolume)
   const toggleMute = useGameStore((s) => s.toggleMute)
   const setVolume = useGameStore((s) => s.setVolume)
+
+  const timeLeft = Math.max(0, raceTimeLimit - raceTime)
+  const timeFrac = raceTimeLimit > 0 ? Math.max(0, Math.min(1, timeLeft / raceTimeLimit)) : 1
+  const isUrgent = timeLeft < 15 && timeLeft > 0
+  const isCritical = timeLeft < 8 && timeLeft > 0
 
   // Escape key toggles pause
   useEffect(() => {
@@ -191,12 +198,73 @@ export default function HUD() {
         </div>
       )}
 
+      {/* ── Countdown Timer Bar (top of screen) ────────────── */}
+      {raceStarted && !raceFinished && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '6px',
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 5,
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${timeFrac * 100}%`,
+            background: isCritical
+              ? '#ff2222'
+              : isUrgent
+                ? '#ffaa00'
+                : 'linear-gradient(90deg, #00b4ff, #00ffaa)',
+            borderRadius: '0 3px 3px 0',
+            transition: 'width 0.3s linear',
+            boxShadow: isCritical
+              ? '0 0 12px #ff2222'
+              : isUrgent
+                ? '0 0 10px #ffaa00'
+                : '0 0 8px rgba(0,180,255,0.5)',
+          }} />
+        </div>
+      )}
+
+      {/* ── Time remaining label ───────────────────────────── */}
+      {raceStarted && !raceFinished && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          zIndex: 6,
+        }}>
+          <span style={{
+            fontSize: '0.6rem',
+            color: isCritical ? '#ff4444' : isUrgent ? '#ffcc00' : 'rgba(255,255,255,0.45)',
+            letterSpacing: '0.2em',
+          }}>
+            TIME
+          </span>
+          <span style={{
+            fontSize: '1rem',
+            fontWeight: 700,
+            color: isCritical ? '#ff4444' : isUrgent ? '#ffcc00' : '#fff',
+            textShadow: isCritical ? '0 0 12px #ff2222' : isUrgent ? '0 0 10px #ffaa00' : 'none',
+            animation: isCritical ? 'pulse-text 0.5s infinite alternate' : 'none',
+          }}>
+            {Math.floor(timeLeft / 60)}:{(Math.floor(timeLeft) % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+      )}
+
       {/* ── Time & Lap ─────────────────────────────────────── */}
       {raceStarted && (
         <div
           style={{
             position: 'absolute',
-            top: '1.5rem',
+            top: '2.5rem',
             left: '50%',
             transform: 'translateX(-50%)',
             textAlign: 'center',

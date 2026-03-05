@@ -5,14 +5,13 @@ import * as THREE from 'three'
 import useGameStore from '../store'
 import audioManager from '../audioManager'
 import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack } from '../trackData'
+import { nightFactorRef } from './Lighting'
 
 const pressedKeys = {}
 
-const MODEL_PATH = '/models/muscle_car.glb'
-
 /* ── GLB Car Model ─────────────────────────────────────────── */
-function GLBCarModel({ color }) {
-  const { scene } = useGLTF(MODEL_PATH)
+function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY }) {
+  const { scene } = useGLTF(modelPath || '/models/muscle_car.glb')
 
   const clonedScene = useMemo(() => {
     const clone = scene.clone(true)
@@ -38,9 +37,9 @@ function GLBCarModel({ color }) {
   return (
     <primitive
       object={clonedScene}
-      scale={1.5}
-      rotation={[0, 0, 0]}
-      position={[0, 0.35, 0]}
+      scale={modelScale || 1.5}
+      rotation={[0, modelRotY || 0, 0]}
+      position={[0, modelPosY ?? 0.35, 0]}
     />
   )
 }
@@ -68,92 +67,82 @@ function FallbackCar({ color }) {
 }
 
 /* ── Car wrapper with Suspense ─────────────────────────────── */
-function CarModel({ color }) {
+function CarModel({ color, modelPath, modelScale, modelRotY, modelPosY }) {
   return (
     <Suspense fallback={<FallbackCar color={color} />}>
-      <GLBCarModel color={color} />
+      <GLBCarModel color={color} modelPath={modelPath} modelScale={modelScale} modelRotY={modelRotY} modelPosY={modelPosY} />
     </Suspense>
   )
 }
 
-// Preload the model
-useGLTF.preload(MODEL_PATH)
+// Preload models
+useGLTF.preload('/models/muscle_car.glb')
+useGLTF.preload('/models/sport_car.glb')
 
 /* ── Vehicle Lights (headlights + taillights, night-reactive) ─ */
 function CarLights({ velocityRef }) {
-  const hlLRef    = useRef()   // headlight point light left
-  const hlRRef    = useRef()   // headlight point light right
-  const hlMatLRef = useRef()   // headlight bulb material left
-  const hlMatRRef = useRef()   // headlight bulb material right
-  const tlMatLRef = useRef()   // taillight material left
-  const tlMatRRef = useRef()   // taillight material right
-  const tlLRef    = useRef()   // taillight point light left
-  const tlRRef    = useRef()   // taillight point light right
+  const hlLL = useRef()   // headlight PointLight left
+  const hlRL = useRef()   // headlight PointLight right
+  const hlML = useRef()   // headlight bulb material left
+  const hlMR = useRef()   // headlight bulb material right
+  const tlML = useRef()   // taillight material left
+  const tlMR = useRef()   // taillight material right
+  const tlLL = useRef()   // taillight PointLight left
+  const tlLR = useRef()   // taillight PointLight right
 
-  useFrame(({ clock }) => {
-    const t    = (clock.getElapsedTime() / 90) % 1
-    const dayF = THREE.MathUtils.clamp(Math.sin(t * Math.PI * 2) * 1.3 + 0.15, 0, 1)
-    const nf   = 1 - dayF
+  useFrame(() => {
+    const nf      = nightFactorRef.current
     const isNight = nf > 0.3
+    const headI   = isNight ? THREE.MathUtils.lerp(0.2, 4.0, (nf - 0.3) / 0.7) : 0
+    const headEI  = isNight ? THREE.MathUtils.lerp(0.1, 3.0, (nf - 0.3) / 0.7) : 0
 
-    // Headlights on at night
-    const headI = isNight ? THREE.MathUtils.lerp(0, 3.5, (nf - 0.3) / 0.7) : 0
-    if (hlLRef.current)    hlLRef.current.intensity    = headI
-    if (hlRRef.current)    hlRRef.current.intensity    = headI
-    if (hlMatLRef.current) hlMatLRef.current.emissiveIntensity = isNight ? 2.5 : 0.04
-    if (hlMatRRef.current) hlMatRRef.current.emissiveIntensity = isNight ? 2.5 : 0.04
+    if (hlLL.current) hlLL.current.intensity = headI
+    if (hlRL.current) hlRL.current.intensity = headI
+    if (hlML.current) hlML.current.emissiveIntensity = headEI
+    if (hlMR.current) hlMR.current.emissiveIntensity = headEI
 
-    // Taillights always on (brighter when going)
     const speed  = velocityRef ? Math.abs(velocityRef.current) : 0
-    const tailI  = 0.5 + (speed > 0.1 ? 0.8 : 0)
-    const tailEI = 0.8 + (speed > 0.1 ? 1.2 : 0)
-    if (tlLRef.current)    tlLRef.current.intensity    = tailI
-    if (tlRRef.current)    tlRRef.current.intensity    = tailI
-    if (tlMatLRef.current) tlMatLRef.current.emissiveIntensity = tailEI
-    if (tlMatRRef.current) tlMatRRef.current.emissiveIntensity = tailEI
+    const tailI  = 0.4 + (speed > 0.1 ? 1.0 : 0)
+    const tailEI = 0.8 + (speed > 0.1 ? 1.6 : 0)
+    if (tlLL.current) tlLL.current.intensity = tailI
+    if (tlLR.current) tlLR.current.intensity = tailI
+    if (tlML.current) tlML.current.emissiveIntensity = tailEI
+    if (tlMR.current) tlMR.current.emissiveIntensity = tailEI
   })
 
   return (
     <group>
-      {/* ── Headlight bulbs (front face) ─────────────────── */}
-      <mesh position={[-0.72, 0.88, 2.12]}>
-        <circleGeometry args={[0.17, 10]} />
-        <meshStandardMaterial ref={hlMatLRef}
-          color="#ffffdd" emissive="#ffffdd" emissiveIntensity={0.04} />
+      {/* Headlight lens — no emissiveIntensity prop, driven purely by useFrame */}
+      <mesh position={[-0.72, 0.9, 2.15]}>
+        <circleGeometry args={[0.18, 12]} />
+        <meshStandardMaterial ref={hlML} color="#ffffee"
+          emissive="#ffffee" side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0.72, 0.88, 2.12]}>
-        <circleGeometry args={[0.17, 10]} />
-        <meshStandardMaterial ref={hlMatRRef}
-          color="#ffffdd" emissive="#ffffdd" emissiveIntensity={0.04} />
-      </mesh>
-
-      {/* ── Headlight point lights aimed forward ─────────── */}
-      <pointLight ref={hlLRef}
-        position={[-0.72, 0.88, 4]}
-        intensity={0} color="#fff8e0" distance={45} />
-      <pointLight ref={hlRRef}
-        position={[0.72, 0.88, 4]}
-        intensity={0} color="#fff8e0" distance={45} />
-
-      {/* ── Taillight lens (rear face) ────────────────────── */}
-      <mesh position={[-0.65, 0.88, -2.14]}>
-        <boxGeometry args={[0.38, 0.14, 0.04]} />
-        <meshStandardMaterial ref={tlMatLRef}
-          color="#cc0000" emissive="#ff0000" emissiveIntensity={0.8} />
-      </mesh>
-      <mesh position={[0.65, 0.88, -2.14]}>
-        <boxGeometry args={[0.38, 0.14, 0.04]} />
-        <meshStandardMaterial ref={tlMatRRef}
-          color="#cc0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      <mesh position={[0.72, 0.9, 2.15]}>
+        <circleGeometry args={[0.18, 12]} />
+        <meshStandardMaterial ref={hlMR} color="#ffffee"
+          emissive="#ffffee" side={THREE.DoubleSide} />
       </mesh>
 
-      {/* ── Taillight glow ────────────────────────────────── */}
-      <pointLight ref={tlLRef}
-        position={[-0.65, 0.88, -2.5]}
-        intensity={0.5} color="#ff2200" distance={10} />
-      <pointLight ref={tlRRef}
-        position={[0.65, 0.88, -2.5]}
-        intensity={0.5} color="#ff2200" distance={10} />
+      {/* Headlight beams — no intensity prop, driven by useFrame */}
+      <pointLight ref={hlLL} position={[-0.72, 0.9, 5]} color="#fff4d0" distance={60} />
+      <pointLight ref={hlRL} position={[ 0.72, 0.9, 5]} color="#fff4d0" distance={60} />
+
+      {/* Taillight lens — no emissiveIntensity prop, driven by useFrame */}
+      <mesh position={[-0.65, 0.9, -2.15]}>
+        <boxGeometry args={[0.4, 0.14, 0.04]} />
+        <meshStandardMaterial ref={tlML} color="#880000"
+          emissive="#ff1100" />
+      </mesh>
+      <mesh position={[0.65, 0.9, -2.15]}>
+        <boxGeometry args={[0.4, 0.14, 0.04]} />
+        <meshStandardMaterial ref={tlMR} color="#880000"
+          emissive="#ff1100" />
+      </mesh>
+
+      {/* Taillight glow — no intensity prop, driven by useFrame */}
+      <pointLight ref={tlLL} position={[-0.65, 0.9, -3]} color="#ff2200" distance={12} />
+      <pointLight ref={tlLR} position={[ 0.65, 0.9, -3]} color="#ff2200" distance={12} />
     </group>
   )
 }
@@ -332,7 +321,7 @@ export default function Car() {
 
   return (
     <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
-      <CarModel color={carConfig.color} />
+      <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
       <CarLights velocityRef={velocity} />
     </group>
   )
