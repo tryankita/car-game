@@ -205,7 +205,7 @@ export default function Car() {
     }
   }, [selectedCar, selectedLevel])
 
-  /* Physics & camera — every frame */
+  /* Physics & camera — every frame  jg uyfyfuytf  */
   useFrame((state, delta) => {
     if (!carRef.current) return
     const car = carRef.current
