@@ -294,7 +294,7 @@ export default function Car() {
     setRaceTime(state.clock.getElapsedTime() - raceStartTimeRef.current)
     setCarPosition(car.position.x, car.position.z, car.rotation.y)
 
-    // Update engine sound based on speed
+    // Update engine sound based on speed relative to top speed (0 to 1)
     audioManager.updateEngineSound(Math.abs(velocity.current), topSpeed)
 
     // --- Lap detection (cross Z=0 on the start straight) ---
