@@ -1,13 +1,12 @@
-import { useMemo, useRef } from 'react'
-import * as THREE from 'three'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
 import useGameStore from '../store'
 import {
   ROAD_W, HW, CURB_W, SW_W, WALL_D, WALL_H, SAMPLES,
   setActiveLevel, getActiveTrack,
   makeCurve, sampleFrames, nearestTrackInfo,
 } from '../trackData'
-import { nightFactorRef } from './Lighting'
 
 /* ═══════════════════════════════════════════════════════════════
    FORMULA-STYLE GRAND PRIX CIRCUIT  (visuals only)
@@ -176,8 +175,9 @@ function genBuildings(frames, levelSeed) {
 
 /* ── Cinematic Building ─────────────────────────────────────── */
 function Bld({ b, winMat, neonMat }) {
-  const rows = Math.floor(b.h / 4.5)
-  const winCols = Math.max(1, Math.floor(b.w / 3))
+  // Cap windows to reduce mesh count (Phase 5 optimisation)
+  const rows    = Math.min(Math.floor(b.h / 4.5), 3)
+  const winCols = Math.min(Math.max(1, Math.floor(b.w / 3)), 3)
 
   return (
     <group position={[b.x, 0, b.z]}>
@@ -262,24 +262,7 @@ function Bld({ b, winMat, neonMat }) {
         </group>
       )}
 
-      {/* ── Rooftop light ─────────────────────────────────── */}
-      {b.roofLight && (
-        <pointLight
-          position={[0, b.h + 1.5, 0]}
-          intensity={0.15} distance={b.h * 0.8} color="#ffeedd"
-        />
-      )}
-
-      {/* ── AC units on side ──────────────────────────────── */}
-      {b.acUnits && Array.from({ length: Math.min(3, Math.floor(b.h / 15)) }, (_, i) => (
-        <mesh key={`ac${i}`}
-          position={[-b.w / 2 - 0.4, 5 + i * 12, b.d * 0.2]}
-          castShadow
-        >
-          <boxGeometry args={[0.7, 0.5, 0.8]} />
-          <meshStandardMaterial color="#aaa" metalness={0.5} roughness={0.4} />
-        </mesh>
-      ))}
+      {/* Rooftop light removed — daytime scene, always 0 intensity */}
 
       {/* ── Billboard on tall buildings ───────────────────── */}
       {b.billboard && (
@@ -301,43 +284,87 @@ function Bld({ b, winMat, neonMat }) {
 }
 
 /* ── Streetlight — self-contained, reads nightFactorRef each frame ── */
+/* Daytime-only lamp pole — no dynamic lighting (nightFactor always 0) */
 function Lamp({ pos }) {
-  const bulbRef  = useRef()
-  const lightRef = useRef()
-
-  useFrame(() => {
-    const nf   = nightFactorRef.current
-    const glow = nf > 0.3
-    const bulbEI = glow ? THREE.MathUtils.lerp(0, 5.0, (nf - 0.3) / 0.7) : 0
-    const lampI  = glow ? THREE.MathUtils.lerp(0, 4.5, (nf - 0.3) / 0.7) : 0
-    if (bulbRef.current)  bulbRef.current.emissiveIntensity  = bulbEI
-    if (lightRef.current) lightRef.current.intensity = lampI
-  })
-
   return (
     <group position={pos}>
-      {/* Pole */}
       <mesh position={[0, 3.5, 0]} castShadow>
         <cylinderGeometry args={[0.08, 0.12, 7, 6]} />
         <meshStandardMaterial color="#666" metalness={0.8} roughness={0.3} />
       </mesh>
-      {/* Arm */}
       <mesh position={[0.6, 7.1, 0]} rotation={[0, 0, -Math.PI / 8]}>
         <cylinderGeometry args={[0.045, 0.045, 1.3, 5]} />
         <meshStandardMaterial color="#555" metalness={0.8} />
       </mesh>
-      {/* Lamp head housing */}
       <mesh position={[1.1, 7.4, 0]}>
         <boxGeometry args={[0.55, 0.22, 0.55]} />
         <meshStandardMaterial color="#444" metalness={0.6} roughness={0.4} />
       </mesh>
-      {/* Bulb — no emissiveIntensity prop, driven by useFrame */}
-      <mesh position={[1.1, 7.28, 0]}>
-        <sphereGeometry args={[0.16, 8, 8]} />
-        <meshStandardMaterial ref={bulbRef} color="#ffe8a0" emissive="#ffe8a0" />
+    </group>
+  )
+}
+
+/* ── Sponsor board — trackside advertising banner ─────────── */
+const SPONSOR_COLORS = ['#e8001c', '#0055a4', '#ffcc00', '#00a651', '#ff6600', '#9b1dff']
+const SPONSOR_LABELS = ['FORMULA RACE', 'APEX ENERGY', 'CARBON SPEED', 'TRACK MASTER', 'RACE PRO', 'TURBO FUEL']
+
+function SponsorBoard({ pos, ry, idx }) {
+  const col = SPONSOR_COLORS[idx % SPONSOR_COLORS.length]
+  return (
+    <group position={pos} rotation={[0, ry, 0]}>
+      {/* Post left */}
+      <mesh position={[-2.2, 1.5, 0]} castShadow>
+        <cylinderGeometry args={[0.09, 0.12, 3, 6]} />
+        <meshStandardMaterial color="#555" metalness={0.7} />
       </mesh>
-      {/* Light source — no intensity prop, driven by useFrame */}
-      <pointLight ref={lightRef} position={[1.1, 7.0, 0]} distance={50} color="#ffd580" />
+      {/* Post right */}
+      <mesh position={[2.2, 1.5, 0]} castShadow>
+        <cylinderGeometry args={[0.09, 0.12, 3, 6]} />
+        <meshStandardMaterial color="#555" metalness={0.7} />
+      </mesh>
+      {/* Banner board */}
+      <mesh position={[0, 3.1, 0]} castShadow>
+        <boxGeometry args={[4.8, 1.2, 0.14]} />
+        <meshStandardMaterial color={col} roughness={0.5} />
+      </mesh>
+      {/* White label stripe */}
+      <mesh position={[0, 3.1, 0.08]}>
+        <planeGeometry args={[4.4, 0.55]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+    </group>
+  )
+}
+
+/* ── Camera lattice tower ─────────────────────────────────── */
+function CameraLattice({ pos, ry }) {
+  return (
+    <group position={pos} rotation={[0, ry, 0]}>
+      {/* Main vertical pole */}
+      <mesh position={[0, 5, 0]} castShadow>
+        <cylinderGeometry args={[0.1, 0.15, 10, 6]} />
+        <meshStandardMaterial color="#778899" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* Horizontal arm */}
+      <mesh position={[1.2, 10.5, 0]} rotation={[0, 0, -Math.PI / 10]} castShadow>
+        <cylinderGeometry args={[0.06, 0.06, 2.8, 6]} />
+        <meshStandardMaterial color="#666" metalness={0.7} />
+      </mesh>
+      {/* Camera housing */}
+      <mesh position={[2.4, 10.2, 0]}>
+        <boxGeometry args={[0.35, 0.25, 0.45]} />
+        <meshStandardMaterial color="#111" metalness={0.5} roughness={0.4} />
+      </mesh>
+      {/* Camera lens */}
+      <mesh position={[2.4, 10.2, 0.26]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.1, 0.08, 0.12, 10]} />
+        <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Diagonal brace */}
+      <mesh position={[0.4, 7.5, 0]} rotation={[0, 0, Math.PI / 5]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 5.5, 5]} />
+        <meshStandardMaterial color="#778899" metalness={0.6} />
+      </mesh>
     </group>
   )
 }
@@ -345,6 +372,200 @@ function Lamp({ pos }) {
 /* ═══════════════════════════════════════════════════════════════
    MAIN TRACK COMPONENT
    ═══════════════════════════════════════════════════════════════ */
+/* ── Instanced centerline dashes (1 draw call) ───────────── */
+function InstancedDashes({ dashes }) {
+  const ref = useRef()
+  const geo = useMemo(() => new THREE.PlaneGeometry(0.22, 3), [])
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: 'white', transparent: true, opacity: 0.45 }), [])
+  useEffect(() => {
+    const mesh = ref.current
+    if (!mesh || !dashes.length) return
+    const dummy = new THREE.Object3D()
+    dashes.forEach((d, i) => {
+      dummy.position.set(d.x, 0.02, d.z)
+      dummy.rotation.set(-Math.PI / 2, d.ry, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  }, [dashes])
+  return <instancedMesh ref={ref} geometry={geo} material={mat} count={dashes.length} />
+}
+
+/* ── Instanced kerb stripes (2 draw calls) ────────────────── */
+function InstancedKerbs({ kerbs }) {
+  const redRef   = useRef()
+  const whiteRef = useRef()
+  const geo      = useMemo(() => new THREE.PlaneGeometry(CURB_W, 2.4), [])
+  const redMat   = useMemo(() => new THREE.MeshBasicMaterial({ color: '#cc2200' }), [])
+  const whiteMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffffff' }), [])
+  const reds   = useMemo(() => kerbs.filter(k =>  k.red), [kerbs])
+  const whites = useMemo(() => kerbs.filter(k => !k.red), [kerbs])
+  useEffect(() => {
+    const dummy = new THREE.Object3D()
+    const fill = (mesh, arr) => {
+      if (!mesh || !arr.length) return
+      arr.forEach((k, i) => {
+        dummy.position.set(k.x, 0.055, k.z)
+        dummy.rotation.set(-Math.PI / 2, k.ry, 0)
+        dummy.scale.set(1, 1, 1)
+        dummy.updateMatrix()
+        mesh.setMatrixAt(i, dummy.matrix)
+      })
+      mesh.instanceMatrix.needsUpdate = true
+    }
+    fill(redRef.current, reds)
+    fill(whiteRef.current, whites)
+  }, [kerbs, reds, whites])
+  return (
+    <>
+      <instancedMesh ref={redRef}   geometry={geo} material={redMat}   count={reds.length} />
+      <instancedMesh ref={whiteRef} geometry={geo} material={whiteMat} count={whites.length} />
+    </>
+  )
+}
+
+/* ── Instanced trees (2 draw calls) ─────────────────────────── */
+function InstancedTrees({ frames, selectedLevel }) {
+  const trunkRef  = useRef()
+  const canopyRef = useRef()
+  const trunkGeo  = useMemo(() => new THREE.CylinderGeometry(0.12, 0.18, 1, 6), [])
+  const canopyGeo = useMemo(() => new THREE.SphereGeometry(1, 8, 8), [])
+  const trunkMat  = useMemo(() => new THREE.MeshStandardMaterial({ color: '#5a3a1a' }), [])
+  const canopyMat = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: false, color: '#4a7a2a' }), [])
+
+  const trees = useMemo(() => {
+    const r = prng(99 + selectedLevel)
+    const xs = frames.map(f => f.p.x), zs = frames.map(f => f.p.z)
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2
+    const cz = (Math.min(...zs) + Math.max(...zs)) / 2
+    const rx = (Math.max(...xs) - Math.min(...xs)) / 3
+    const rz = (Math.max(...zs) - Math.min(...zs)) / 3
+    const list = []
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2
+      const px = cx + (rx * 0.2 + r() * rx * 0.6) * Math.cos(angle)
+      const pz = cz + (rz * 0.2 + r() * rz * 0.6) * Math.sin(angle)
+      const h  = 3 + r() * 4
+      const info = nearestTrackInfo(px, pz)
+      if (Math.abs(info.signedDist) < WALL_D + 4) continue
+      list.push({ px, pz, h, radius: 1 + r() * 0.8, hue: 100 + r() * 40, light: 22 + r() * 12 })
+    }
+    return list
+  }, [frames, selectedLevel])
+
+  useEffect(() => {
+    if (!trunkRef.current || !canopyRef.current || !trees.length) return
+    const dummy = new THREE.Object3D()
+    const col   = new THREE.Color()
+    trees.forEach((t, i) => {
+      dummy.position.set(t.px, t.h / 2, t.pz)
+      dummy.rotation.set(0, 0, 0)
+      dummy.scale.set(1, t.h, 1)
+      dummy.updateMatrix()
+      trunkRef.current.setMatrixAt(i, dummy.matrix)
+
+      dummy.position.set(t.px, t.h + 1, t.pz)
+      dummy.scale.set(t.radius, t.radius, t.radius)
+      dummy.updateMatrix()
+      canopyRef.current.setMatrixAt(i, dummy.matrix)
+      col.setHSL(t.hue / 360, 0.5, t.light / 100)
+      canopyRef.current.setColorAt(i, col)
+    })
+    trunkRef.current.instanceMatrix.needsUpdate  = true
+    canopyRef.current.instanceMatrix.needsUpdate = true
+    if (canopyRef.current.instanceColor) canopyRef.current.instanceColor.needsUpdate = true
+  }, [trees])
+
+  if (!trees.length) return null
+  return (
+    <>
+      <instancedMesh ref={trunkRef}  geometry={trunkGeo}  material={trunkMat}  count={trees.length} castShadow />
+      <instancedMesh ref={canopyRef} geometry={canopyGeo} material={canopyMat} count={trees.length} castShadow />
+    </>
+  )
+}
+
+// ── F1 Start / Finish Gantry with animated lights ───────────
+function StartLightsGantry({ sf }) {
+  const matRefs = useRef([])
+
+  useFrame(() => {
+    const { countdown, raceStarted } = useGameStore.getState()
+    // Map countdown to pods lit (0 = leftmost pod index)
+    // 3 → 1 pod, 2 → 3 pods, 1 or 0 → 5 pods; raceStarted → 0
+    let numLit
+    if (raceStarted) numLit = 0
+    else if (countdown >= 3) numLit = 1
+    else if (countdown === 2) numLit = 3
+    else numLit = 5
+
+    matRefs.current.forEach((mat, idx) => {
+      if (!mat) return
+      const target = Math.floor(idx / 2) < numLit ? 5.5 : 0.05
+      mat.emissiveIntensity = THREE.MathUtils.lerp(mat.emissiveIntensity, target, 0.18)
+    })
+  })
+
+  return (
+    <group position={[sf.p.x, 0, sf.p.z]} rotation={[0, sf.ry, 0]}>
+      {/* Left column */}
+      <mesh position={[-(HW + 1.2), 6, 0]} castShadow>
+        <boxGeometry args={[0.7, 12, 0.7]} />
+        <meshStandardMaterial color="#222" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Right column */}
+      <mesh position={[(HW + 1.2), 6, 0]} castShadow>
+        <boxGeometry args={[0.7, 12, 0.7]} />
+        <meshStandardMaterial color="#222" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Horizontal truss beam */}
+      <mesh position={[0, 12.15, 0]} castShadow>
+        <boxGeometry args={[ROAD_W + 4, 0.55, 0.9]} />
+        <meshStandardMaterial color="#1a1a1a" metalness={0.75} roughness={0.25} />
+      </mesh>
+      {/* Truss detail strips */}
+      <mesh position={[0, 12.45, 0]}>
+        <boxGeometry args={[ROAD_W + 4.2, 0.12, 0.7]} />
+        <meshStandardMaterial color="#444" metalness={0.8} />
+      </mesh>
+      {/* Timing-screen banner */}
+      <mesh position={[0, 13.0, 0.5]}>
+        <planeGeometry args={[12, 1.2]} />
+        <meshStandardMaterial color="#001133" emissive="#002266" emissiveIntensity={0.6} />
+      </mesh>
+      {/* "FORMULA RACE" text-mock on board — white strip */}
+      <mesh position={[0, 13.0, 0.52]}>
+        <planeGeometry args={[10, 0.45]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+      {/* 5 red start-light pods hanging from beam */}
+      {[-8, -4, 0, 4, 8].map((xOff, i) => (
+        <group key={i} position={[xOff, 11.5, 0]}>
+          {/* Pod housing */}
+          <mesh>
+            <boxGeometry args={[1.6, 0.55, 0.55]} />
+            <meshStandardMaterial color="#111" metalness={0.5} roughness={0.4} />
+          </mesh>
+          {/* 2 light circles per pod */}
+          {[-0.4, 0.4].map((lx, j) => (
+            <mesh key={j} position={[lx, 0, 0.32]}>
+              <circleGeometry args={[0.2, 12]} />
+              <meshStandardMaterial
+                ref={el => { matRefs.current[i * 2 + j] = el }}
+                color="#cc0000"
+                emissive="#ff0000"
+                emissiveIntensity={0.05}
+              />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  )
+}
+
 export default function Track() {
   const selectedLevel = useGameStore((s) => s.selectedLevel)
 
@@ -354,32 +575,23 @@ export default function Track() {
   const curve  = useMemo(() => { setActiveLevel(selectedLevel); return makeCurve() }, [selectedLevel])
   const frames = useMemo(() => sampleFrames(curve, SAMPLES), [curve])
 
-  // ── Shared materials that respond to day/night ──────────
+  // ── Shared materials (day only — window emissive kept low) ──
   const winMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#ffeeaa', emissive: '#ffeeaa', emissiveIntensity: 0.2,
-    transparent: true, opacity: 0.5,
+    color: '#c8ddf0', emissive: '#c8ddf0', emissiveIntensity: 0.05,
+    transparent: true, opacity: 0.55,
   }), [])
   const neonMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 1.5,
+    color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 0.15,
   }), [])
 
-  useFrame(({ clock }) => {
-    const nf = nightFactorRef.current
-
-    // Windows glow brighter at night
-    winMat.emissiveIntensity = THREE.MathUtils.lerp(0.05, 0.8, nf)
-    winMat.opacity = THREE.MathUtils.lerp(0.25, 0.75, nf)
-
-    // Neon strips pulse at night
-    const pulse = 1 + Math.sin(clock.getElapsedTime() * 3) * 0.3
-    neonMat.emissiveIntensity = nf > 0.3 ? 1.5 * pulse : 0.15
-  })
-
-  const roadG   = useMemo(() => flatStrip(frames, ROAD_W, 0.01), [frames])
-  const innerSW = useMemo(() => ringStrip(frames, HW, HW + SW_W, 0.05), [frames])
-  const outerSW = useMemo(() => ringStrip(frames, -(HW + SW_W), -HW, 0.05), [frames])
-  const innerW  = useMemo(() => wallGeo(frames, WALL_D, WALL_H), [frames])
-  const outerW  = useMemo(() => wallGeo(frames, -WALL_D, WALL_H), [frames])
+  const roadG      = useMemo(() => flatStrip(frames, ROAD_W, 0.01), [frames])
+  const innerSW    = useMemo(() => ringStrip(frames, HW, HW + SW_W, 0.05), [frames])
+  const outerSW    = useMemo(() => ringStrip(frames, -(HW + SW_W), -HW, 0.05), [frames])
+  const innerW     = useMemo(() => wallGeo(frames, WALL_D, WALL_H), [frames])
+  const outerW     = useMemo(() => wallGeo(frames, -WALL_D, WALL_H), [frames])
+  // Safety fencing — thin 1.8 m tall strip just outside the barriers
+  const innerFence = useMemo(() => wallGeo(frames, WALL_D + 1.2, 1.8), [frames])
+  const outerFence = useMemo(() => wallGeo(frames, -(WALL_D + 1.2), 1.8), [frames])
 
   const dashes = useMemo(() => {
     const arr = []
@@ -437,6 +649,37 @@ export default function Track() {
 
   const blds = useMemo(() => genBuildings(frames, selectedLevel), [frames, selectedLevel])
 
+  // ── Sponsor boards — outer side every ~16 frames ──────────
+  const sponsorBoards = useMemo(() => {
+    const arr = []
+    const step = Math.floor(frames.length / 18)
+    for (let i = 0; i < frames.length; i += step) {
+      const f = frames[i]
+      const off = WALL_D + 5
+      arr.push({
+        pos: [f.p.x + f.nm.x * off, 0, f.p.z + f.nm.z * off],
+        ry: f.ry + Math.PI / 2,
+        idx: Math.floor(i / step),
+      })
+    }
+    return arr
+  }, [frames])
+
+  // ── Camera towers — inner side every ~30 frames ───────────
+  const cameraTowers = useMemo(() => {
+    const arr = []
+    const step = Math.floor(frames.length / 10)
+    for (let i = 0; i < frames.length; i += step) {
+      const f = frames[i]
+      const off = WALL_D + 4
+      arr.push({
+        pos: [f.p.x - f.nm.x * off, 0, f.p.z - f.nm.z * off],
+        ry: f.ry,
+      })
+    }
+    return arr
+  }, [frames])
+
   const checks = useMemo(() => {
     const cells = []
     const cols = 8, rows = 4
@@ -457,48 +700,50 @@ export default function Track() {
 
   return (
     <group>
-      {/* Ground */}
+      {/* Ground — bright race-day grass */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
-        <planeGeometry args={[800, 800]} />
-        <meshStandardMaterial color="#1a3210" roughness={1} />
+        <planeGeometry args={[1200, 1200]} />
+        <meshStandardMaterial color="#3a7a2a" roughness={0.95} />
       </mesh>
 
-      {/* Road */}
-      <mesh geometry={roadG} receiveShadow>
-        <meshStandardMaterial color="#2a2a2a" roughness={0.92} />
+      {/* Road — dark asphalt with subtle specular sheen */}
+      <mesh geometry={roadG} receiveShadow castShadow>
+        <meshStandardMaterial color="#1e1e1e" roughness={0.78} metalness={0.08} />
       </mesh>
 
-      {/* Sidewalks */}
+      {/* Run-off / kerb shoulder — matches F1 circuit green tarmac */}
       <mesh geometry={innerSW} receiveShadow>
-        <meshStandardMaterial color="#777" roughness={0.95} />
+        <meshStandardMaterial color="#4a8c3a" roughness={0.9} />
       </mesh>
       <mesh geometry={outerSW} receiveShadow>
-        <meshStandardMaterial color="#777" roughness={0.95} />
+        <meshStandardMaterial color="#4a8c3a" roughness={0.9} />
       </mesh>
 
       {/* Barriers */}
+      {/* Inner barrier — bright white F1 concrete wall */}
       <mesh geometry={innerW}>
-        <meshStandardMaterial color="#b0b0b0" roughness={0.6} metalness={0.15} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#e8e8e8" roughness={0.5} metalness={0.05} side={THREE.DoubleSide} />
       </mesh>
+      {/* Outer barrier — bright white F1 concrete wall */}
       <mesh geometry={outerW}>
-        <meshStandardMaterial color="#b0b0b0" roughness={0.6} metalness={0.15} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#e8e8e8" roughness={0.5} metalness={0.05} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Centre-line dashes */}
-      {dashes.map((d, i) => (
-        <mesh key={`d${i}`} position={[d.x, 0.02, d.z]} rotation={[-Math.PI / 2, d.ry, 0]}>
-          <planeGeometry args={[0.22, 3]} />
-          <meshBasicMaterial color="white" transparent opacity={0.45} />
-        </mesh>
-      ))}
+      {/* Safety fencing — chain-link style outside barriers */}
+      <mesh geometry={innerFence}>
+        <meshStandardMaterial color="#7aaa55" roughness={0.6} metalness={0.2}
+          side={THREE.DoubleSide} transparent opacity={0.7} />
+      </mesh>
+      <mesh geometry={outerFence}>
+        <meshStandardMaterial color="#7aaa55" roughness={0.6} metalness={0.2}
+          side={THREE.DoubleSide} transparent opacity={0.7} />
+      </mesh>
 
-      {/* Kerb stripes */}
-      {kerbs.map((k, i) => (
-        <mesh key={`k${i}`} position={[k.x, 0.055, k.z]} rotation={[-Math.PI / 2, k.ry, 0]}>
-          <planeGeometry args={[CURB_W, 2.4]} />
-          <meshBasicMaterial color={k.red ? '#cc2200' : '#ffffff'} />
-        </mesh>
-      ))}
+      {/* Centre-line dashes — single instanced draw call */}
+      <InstancedDashes dashes={dashes} />
+
+      {/* Kerb stripes — 2 instanced draw calls (red + white) */}
+      <InstancedKerbs kerbs={kerbs} />
 
       {/* Start / Finish white base */}
       <mesh position={[sf.p.x, 0.02, sf.p.z]} rotation={[-Math.PI / 2, sf.ry, 0]}>
@@ -514,65 +759,111 @@ export default function Track() {
         </mesh>
       ))}
 
-      {/* Start gantry */}
-      <group position={[sf.p.x, 0, sf.p.z]} rotation={[0, sf.ry, 0]}>
-        <mesh position={[-(HW + 0.6), 4.5, 0]} castShadow>
-          <boxGeometry args={[0.5, 9, 0.5]} />
-          <meshStandardMaterial color="#dd2222" />
-        </mesh>
-        <mesh position={[(HW + 0.6), 4.5, 0]} castShadow>
-          <boxGeometry args={[0.5, 9, 0.5]} />
-          <meshStandardMaterial color="#dd2222" />
-        </mesh>
-        <mesh position={[0, 9.1, 0]} castShadow>
-          <boxGeometry args={[ROAD_W + 1.8, 0.7, 0.9]} />
-          <meshStandardMaterial color="#dd2222" />
-        </mesh>
-        <mesh position={[0, 9.1, 0.5]}>
-          <planeGeometry args={[6, 0.5]} />
-          <meshBasicMaterial color="white" />
-        </mesh>
-      </group>
+      {/* ── F1 Start / Finish Gantry with animated lights ── */}
+      <StartLightsGantry sf={sf} />
 
       {/* Grandstand */}
+      {/* ── Main Grandstand (Start/Finish side) ─────────────── */}
       <group
         position={[
-          sf.p.x - sf.nm.x * (WALL_D + 10), 0,
-          sf.p.z - sf.nm.z * (WALL_D + 10),
+          sf.p.x - sf.nm.x * (WALL_D + 14), 0,
+          sf.p.z - sf.nm.z * (WALL_D + 14),
         ]}
         rotation={[0, sf.ry, 0]}
       >
-        {[0, 1, 2, 3].map(row => (
-          <mesh key={row} position={[row * 2.5, row * 1.5 + 0.75, 0]} castShadow receiveShadow>
-            <boxGeometry args={[2.5, 1.5, 50]} />
-            <meshStandardMaterial color={row % 2 === 0 ? '#334' : '#445'} />
+        {/* Concrete structure — 8 rising tiers */}
+        {[0,1,2,3,4,5,6,7].map(row => (
+          <group key={row}>
+            {/* Concrete step */}
+            <mesh position={[row * 3.2, row * 1.8 + 0.9, 0]} castShadow receiveShadow>
+              <boxGeometry args={[3.5, 1.8, 80]} />
+              <meshStandardMaterial color="#c8c0b8" roughness={0.85} />
+            </mesh>
+            {/* Seat row — alternating orange / blue like F1 stands */}
+            <mesh position={[row * 3.2 + 1.2, row * 1.8 + 1.85, 0]} rotation={[Math.PI * 0.12, 0, 0]}>
+              <boxGeometry args={[1.2, 0.15, 79]} />
+              <meshStandardMaterial
+                color={row % 2 === 0 ? '#e8460a' : '#1a4fa0'}
+                roughness={0.6}
+              />
+            </mesh>
+          </group>
+        ))}
+        {/* Roof canopy over top rows */}
+        <mesh position={[23, 16.2, 0]} castShadow>
+          <boxGeometry args={[10, 0.4, 82]} />
+          <meshStandardMaterial color="#e0dcd4" metalness={0.3} roughness={0.4} />
+        </mesh>
+        {/* Canopy support struts */}
+        {[-36, -18, 0, 18, 36].map((z, i) => (
+          <mesh key={i} position={[25.5, 10, z]} castShadow>
+            <cylinderGeometry args={[0.18, 0.22, 14, 6]} />
+            <meshStandardMaterial color="#888" metalness={0.6} roughness={0.3} />
           </mesh>
         ))}
-        <mesh position={[5, 7.5, 0]} castShadow>
-          <boxGeometry args={[12, 0.3, 52]} />
-          <meshStandardMaterial color="#555" metalness={0.5} />
+        {/* Back wall */}
+        <mesh position={[28.5, 7, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2, 16, 82]} />
+          <meshStandardMaterial color="#a8a09a" roughness={0.9} />
         </mesh>
       </group>
 
-      {/* Pit-lane building */}
+      {/* ── Opposite grandstand (smaller, other side) ───────── */}
       <group
         position={[
-          sf.p.x + sf.nm.x * (WALL_D + 6), 2.5,
+          sf.p.x + sf.nm.x * (WALL_D + 14), 0,
+          sf.p.z + sf.nm.z * (WALL_D + 14),
+        ]}
+        rotation={[0, sf.ry + Math.PI, 0]}
+      >
+        {[0,1,2,3,4].map(row => (
+          <group key={row}>
+            <mesh position={[row * 3.0, row * 1.7 + 0.85, 0]} castShadow receiveShadow>
+              <boxGeometry args={[3.2, 1.7, 60]} />
+              <meshStandardMaterial color="#c0b8b0" roughness={0.85} />
+            </mesh>
+            <mesh position={[row * 3.0 + 1.1, row * 1.7 + 1.72, 0]} rotation={[Math.PI * 0.12, 0, 0]}>
+              <boxGeometry args={[1.1, 0.15, 59]} />
+              <meshStandardMaterial color={row % 2 === 0 ? '#cc3300' : '#f0a500'} roughness={0.6} />
+            </mesh>
+          </group>
+        ))}
+        <mesh position={[14, 9.8, 0]} castShadow>
+          <boxGeometry args={[8, 0.35, 62]} />
+          <meshStandardMaterial color="#ddd8d0" metalness={0.3} roughness={0.4} />
+        </mesh>
+      </group>
+
+      {/* ── Pit-lane building (PRD §5 Race Infrastructure) ─── */}
+      <group
+        position={[
+          sf.p.x + sf.nm.x * (WALL_D + 6), 0,
           sf.p.z + sf.nm.z * (WALL_D + 6),
         ]}
         rotation={[0, sf.ry, 0]}
       >
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[8, 5, 60]} />
-          <meshStandardMaterial color="#4a5568" roughness={0.7} />
+        {/* Main pit building */}
+        <mesh position={[0, 4, 0]} castShadow receiveShadow>
+          <boxGeometry args={[9, 8, 70]} />
+          <meshStandardMaterial color="#3a4a5a" roughness={0.7} />
         </mesh>
-        {Array.from({ length: 10 }, (_, i) => (
-          <mesh key={i} position={[-(8 / 2 + 0.02), 0.5, -25 + i * 5.5]}>
-            <planeGeometry args={[4, 2]} />
-            <meshStandardMaterial color="#aaddff" emissive="#aaddff"
-              emissiveIntensity={0.15} transparent opacity={0.6} />
+        {/* Pit garage doors */}
+        {Array.from({ length: 12 }, (_, i) => (
+          <mesh key={i} position={[-(9 / 2 + 0.02), 1.5, -31.5 + i * 5.8]}>
+            <planeGeometry args={[4.5, 3]} />
+            <meshStandardMaterial color="#223344" roughness={0.3} metalness={0.6} />
           </mesh>
         ))}
+        {/* Pit wall balcony rail */}
+        <mesh position={[-(9 / 2 + 0.3), 4.5, 0]}>
+          <boxGeometry args={[0.15, 1, 70]} />
+          <meshStandardMaterial color="#e0e0e0" metalness={0.8} roughness={0.2} />
+        </mesh>
+        {/* Pit building roof deck */}
+        <mesh position={[0, 8.15, 0]}>
+          <boxGeometry args={[9.4, 0.3, 70.4]} />
+          <meshStandardMaterial color="#2a3a4a" metalness={0.4} roughness={0.5} />
+        </mesh>
       </group>
 
       {/* Streetlights — each self-contained with own useFrame */}
@@ -580,40 +871,21 @@ export default function Track() {
         <Lamp key={`l${i}`} pos={pos} />
       ))}
 
+      {/* ── Trackside sponsor boards (PRD §5) ──────────────── */}
+      {sponsorBoards.map((b, i) => (
+        <SponsorBoard key={`sb${i}`} pos={b.pos} ry={b.ry} idx={b.idx} />
+      ))}
+
+      {/* ── Camera lattice towers (PRD §5) ─────────────────── */}
+      {cameraTowers.map((ct, i) => (
+        <CameraLattice key={`ct${i}`} pos={ct.pos} ry={ct.ry} />
+      ))}
+
       {/* Buildings */}
       {blds.map((b, i) => <Bld key={`b${i}`} b={b} winMat={winMat} neonMat={neonMat} />)}
 
-      {/* Decorative trees inside the circuit */}
-      {useMemo(() => {
-        const r = prng(99 + selectedLevel)
-        // Compute track bounding box centre for tree placement
-        const xs = frames.map(f => f.p.x), zs = frames.map(f => f.p.z)
-        const cx = (Math.min(...xs) + Math.max(...xs)) / 2
-        const cz = (Math.min(...zs) + Math.max(...zs)) / 2
-        const rx = (Math.max(...xs) - Math.min(...xs)) / 3
-        const rz = (Math.max(...zs) - Math.min(...zs)) / 3
-        return Array.from({ length: 20 }, (_, i) => {
-          const angle = (i / 20) * Math.PI * 2
-          const px = cx + (rx * 0.2 + r() * rx * 0.6) * Math.cos(angle)
-          const pz = cz + (rz * 0.2 + r() * rz * 0.6) * Math.sin(angle)
-          const h  = 3 + r() * 4
-          // Skip if too close to the track
-          const info = nearestTrackInfo(px, pz)
-          if (Math.abs(info.signedDist) < WALL_D + 4) return null
-          return (
-            <group key={`t${i}`} position={[px, 0, pz]}>
-              <mesh position={[0, h / 2, 0]} castShadow>
-                <cylinderGeometry args={[0.12, 0.18, h, 6]} />
-                <meshStandardMaterial color="#5a3a1a" />
-              </mesh>
-              <mesh position={[0, h + 1, 0]} castShadow>
-                <sphereGeometry args={[1 + r() * 0.8, 8, 8]} />
-                <meshStandardMaterial color={`hsl(${100 + r() * 40}, 50%, ${22 + r() * 12}%)`} />
-              </mesh>
-            </group>
-          )
-        })
-      }, [frames, selectedLevel])}
+      {/* Decorative trees — 2 instanced draw calls */}
+      <InstancedTrees frames={frames} selectedLevel={selectedLevel} />
     </group>
   )
 }

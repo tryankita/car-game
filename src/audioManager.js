@@ -9,6 +9,8 @@ class AudioManager {
     this.muted = false
     this.initialized = false
     this.userInteracted = false
+    this.audioCtx = null        // Web Audio API context for SFX synthesis
+    this._screechNode = null    // active tire screech node (to avoid overlap)
   }
 
   init() {
@@ -160,6 +162,77 @@ class AudioManager {
     this.stopMenuMusic()
     this.stopRaceMusic()
     this.stopEngineSound()
+  }
+
+  _getAudioCtx() {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    }
+    if (this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {})
+    }
+    return this.audioCtx
+  }
+
+  // Short downward-chirp blip — called on each gear change
+  playGearShift() {
+    if (this.muted || !this.userInteracted) return
+    try {
+      const ctx = this._getAudioCtx()
+      const gain = ctx.createGain()
+      gain.connect(ctx.destination)
+
+      const osc = ctx.createOscillator()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(900, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.08)
+      osc.connect(gain)
+
+      const vol = this.volume * 0.45
+      gain.gain.setValueAtTime(vol, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.13)
+    } catch (_) {}
+  }
+
+  // Bandpass-filtered noise burst — duration/intensity driven by lateral slip
+  playTireScreech(intensity = 1) {
+    if (this.muted || !this.userInteracted) return
+    // Don't stack — if already screeching, just let it continue
+    if (this._screechNode) return
+    try {
+      const ctx = this._getAudioCtx()
+      const duration = Math.min(0.12 + intensity * 0.4, 0.6)
+
+      // White noise via AudioBuffer
+      const bufLen = Math.floor(ctx.sampleRate * duration)
+      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
+      const data = buf.getChannelData(0)
+      for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1
+
+      const src = ctx.createBufferSource()
+      src.buffer = buf
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.value = 1800
+      filter.Q.value = 1.5
+
+      const gain = ctx.createGain()
+      const vol = this.volume * Math.min(intensity * 0.6, 0.55)
+      gain.gain.setValueAtTime(vol, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
+
+      src.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+
+      src.start()
+      this._screechNode = src
+      src.onended = () => { this._screechNode = null }
+    } catch (_) { this._screechNode = null }
   }
 }
 

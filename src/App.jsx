@@ -12,10 +12,11 @@ const HUD        = lazy(() => import('./components/UI/HUD'))
 const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
 
 // Lazy-loaded 3D scene components
-const Car      = lazy(() => import('./components/Car'))
-const Track    = lazy(() => import('./components/Track'))
-const Terrain  = lazy(() => import('./components/Terrain'))
-const Lighting = lazy(() => import('./components/Lighting'))
+const Car        = lazy(() => import('./components/Car'))
+const AIRacers   = lazy(() => import('./components/AIRacers'))
+const Track      = lazy(() => import('./components/Track'))
+const Terrain    = lazy(() => import('./components/Terrain'))
+const Lighting   = lazy(() => import('./components/Lighting'))
 
 /* ── Loading Fallback ───────────────────────────────────────── */
 function PageLoader({ label = 'LOADING' }) {
@@ -113,12 +114,14 @@ function GameScene() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas shadows camera={{ position: [155, 12, -20], fov: 60 }}>
+      <Canvas shadows camera={{ position: [155, 12, -20], fov: 60 }} gl={{ antialias: true }}>
+        <color attach="background" args={['#87ceeb']} />
         <Suspense fallback={null}>
           <Lighting />
           <Track />
           <Terrain />
           <Car />
+          <AIRacers />
         </Suspense>
       </Canvas>
       <Suspense fallback={null}>

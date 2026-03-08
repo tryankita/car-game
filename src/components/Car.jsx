@@ -4,8 +4,9 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../store'
 import audioManager from '../audioManager'
-import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack } from '../trackData'
+import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack, SAMPLES } from '../trackData'
 import { nightFactorRef } from './Lighting'
+import { playerProgress, resetProgress } from '../raceProgress'
 
 const pressedKeys = {}
 
@@ -147,6 +148,80 @@ function CarLights({ velocityRef }) {
   )
 }
 
+/* ── Tire smoke particle system ─────────────────────────────── */
+const MAX_SMOKE = 120
+const _scratchV3 = new THREE.Vector3()
+
+function TireSmoke({ carRef, lateralVelRef, raceStarted }) {
+  const geo = useRef(new THREE.BufferGeometry())
+  const posArr = useRef(new Float32Array(MAX_SMOKE * 3))
+  const particles = useRef([])
+
+  useEffect(() => {
+    geo.current.setAttribute('position',
+      new THREE.BufferAttribute(posArr.current, 3))
+    geo.current.setDrawRange(0, 0)
+  }, [])
+
+  useFrame((_, dt) => {
+    if (!raceStarted || !carRef.current) return
+    const slip = Math.abs(lateralVelRef.current)
+
+    if (slip > 4.5 && particles.current.length < MAX_SMOKE) {
+      _scratchV3.set(0, 0.1, -1.5).applyMatrix4(carRef.current.matrixWorld)
+      const spawnCount = Math.min(3, MAX_SMOKE - particles.current.length)
+      for (let k = 0; k < spawnCount; k++) {
+        particles.current.push({
+          x: _scratchV3.x + (Math.random() - 0.5) * 1.4,
+          y: _scratchV3.y + Math.random() * 0.3,
+          z: _scratchV3.z + (Math.random() - 0.5) * 0.6,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: 1.4 + Math.random() * 1.6,
+          vz: (Math.random() - 0.5) * 1.2,
+          life: 1,
+          duration: 0.6 + Math.random() * 0.5,
+        })
+      }
+    }
+
+    const pos = posArr.current
+    const alive = []
+    let idx = 0
+    for (const p of particles.current) {
+      p.life -= dt / p.duration
+      if (p.life <= 0) continue
+      p.x += p.vx * dt; p.vx *= 0.96
+      p.y += p.vy * dt; p.vy *= 0.95
+      p.z += p.vz * dt; p.vz *= 0.96
+      pos[idx * 3]     = p.x
+      pos[idx * 3 + 1] = p.y
+      pos[idx * 3 + 2] = p.z
+      idx++
+      alive.push(p)
+    }
+    particles.current = alive
+
+    if (geo.current.attributes.position) {
+      geo.current.attributes.position.needsUpdate = true
+      geo.current.setDrawRange(0, idx)
+    }
+  })
+
+  return (
+    <points>
+      <primitive object={geo.current} attach="geometry" />
+      <pointsMaterial
+        size={2.4}
+        color="#c8c8c8"
+        transparent
+        opacity={0.38}
+        depthWrite={false}
+        sizeAttenuation
+      />
+    </points>
+  )
+}
+
 /* ── Main Car component ────────────────────────────────────── */
 export default function Car() {
   const carRef = useRef()
@@ -156,6 +231,9 @@ export default function Car() {
   const lapStartTime = useRef(0)
   const hasLeftStart = useRef(false)
   const raceStartTimeRef = useRef(0)
+  const lateralVel   = useRef(0)          // sideways drift velocity
+  const fovRef       = useRef(62)
+  const prevGearRef  = useRef('N')        // for gear-shift SFX
 
   const selectedCar = useGameStore((s) => s.selectedCar)
   const selectedLevel = useGameStore((s) => s.selectedLevel)
@@ -179,6 +257,7 @@ export default function Car() {
   useEffect(() => {
     const onDown = (e) => {
       pressedKeys[e.code] = true
+      // C key toggles chase camera (cockpit removed)
     }
     const onUp = (e) => {
       pressedKeys[e.code] = false
@@ -198,24 +277,44 @@ export default function Car() {
       carRef.current.position.set(track.spawn[0], 0.5, track.spawn[1])
       carRef.current.rotation.set(0, 0, 0)
       velocity.current = 0
+      lateralVel.current = 0
       prevZ.current = track.spawn[1]
       hasLeftStart.current = false
       lapStartTime.current = 0
       raceStartTimeRef.current = 0
+      resetProgress()
     }
   }, [selectedCar, selectedLevel])
 
-  /* Physics & camera — every frame  jg uyfyfuytf  */
+  /* ── Physics & camera — every frame (Phase 2) ────────────── */
   useFrame((state, delta) => {
     if (!carRef.current) return
     const car = carRef.current
     const dt = Math.min(delta, 0.05)
 
-    // Camera follow even when not racing
-    const camOff = new THREE.Vector3(0, 7, -15)
-    camOff.applyQuaternion(car.quaternion)
-    camera.position.lerp(car.position.clone().add(camOff), 4 * dt)
-    camera.lookAt(car.position.x, 1, car.position.z)
+    const { topSpeed, handling, acceleration: accel } = carConfig
+    const speedRatio = Math.abs(velocity.current) / topSpeed
+
+    // ── Direction vectors ──────────────────────────────────────
+    const fwdVec   = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
+    const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(car.quaternion)
+
+    // ── Camera (PRD §8) — chase camera ─────────────────────────
+    {
+      // Chase camera — smooth follow from behind and above
+      const chaseOff = new THREE.Vector3(0, 7, -18)
+      chaseOff.applyQuaternion(car.quaternion)
+      camera.position.lerp(car.position.clone().add(chaseOff), 6 * dt)
+      camera.lookAt(car.position.x, car.position.y + 1.5, car.position.z)
+
+      // FOV expansion at high speed (62 → 72)
+      const targetFov = THREE.MathUtils.lerp(62, 72, speedRatio * speedRatio)
+      fovRef.current = THREE.MathUtils.lerp(fovRef.current, targetFov, 3 * dt)
+      if (Math.abs(camera.fov - fovRef.current) > 0.3) {
+        camera.fov = fovRef.current
+        camera.updateProjectionMatrix()
+      }
+    }
 
     if (!raceStarted || raceFinished || paused) return
 
@@ -225,79 +324,103 @@ export default function Car() {
       lapStartTime.current = state.clock.getElapsedTime()
     }
 
-    const { topSpeed, handling, acceleration: accel } = carConfig
+    // ── Input ─────────────────────────────────────────────────
+    const isFwd   = pressedKeys[keybinds.forward]  || pressedKeys['ArrowUp']
+    const isBack  = pressedKeys[keybinds.backward] || pressedKeys['ArrowDown']
+    const isLeft  = pressedKeys[keybinds.left]     || pressedKeys['ArrowLeft']
+    const isRight = pressedKeys[keybinds.right]    || pressedKeys['ArrowRight']
+    const isBrake = pressedKeys[keybinds.brake]
 
-    // --- Input (using customizable keybinds) ---
-    const fwd = pressedKeys[keybinds.forward] || pressedKeys['ArrowUp']
-    const back = pressedKeys[keybinds.backward] || pressedKeys['ArrowDown']
-    const left = pressedKeys[keybinds.left] || pressedKeys['ArrowLeft']
-    const right = pressedKeys[keybinds.right] || pressedKeys['ArrowRight']
-    const brake = pressedKeys[keybinds.brake]
+    // ── Acceleration ──────────────────────────────────────────
+    if (isFwd)       velocity.current += accel * dt
+    else if (isBack) velocity.current -= accel * 0.6 * dt
 
-    // Acceleration
-    if (fwd) velocity.current += accel * dt
-    else if (back) velocity.current -= accel * 0.6 * dt
+    // ── Braking ───────────────────────────────────────────────
+    if (isBrake) velocity.current *= 1 - 5.5 * dt
 
-    // Brake
-    if (brake) velocity.current *= 1 - 5 * dt
+    // ── Friction ──────────────────────────────────────────────
+    if (!isFwd && !isBack && !isBrake) velocity.current *= 1 - 1.8 * dt
 
-    // Friction
-    if (!fwd && !back) velocity.current *= 1 - 1.5 * dt
-
-    // Clamp
+    // ── Clamp & silence ───────────────────────────────────────
     velocity.current = THREE.MathUtils.clamp(velocity.current, -topSpeed * 0.3, topSpeed)
     if (Math.abs(velocity.current) < 0.05) velocity.current = 0
 
-    // Keep car above ground
     if (car.position.y < 0.5) car.position.y = 0.5
 
-    // Steering
-    const speedRatio = Math.abs(velocity.current) / topSpeed
-    const steerAmt = handling * dt * Math.min(speedRatio * 3, 1)
+    // ── Steering — less responsive at high speed (F1 feel) ────
+    const steerSensitivity = handling * Math.min(speedRatio * 3, 1) * (1 - speedRatio * 0.28)
+    const steerAmt  = steerSensitivity * dt
     const steerSign = velocity.current >= 0 ? 1 : -1
-    if (left) car.rotation.y += steerAmt * steerSign
-    if (right) car.rotation.y -= steerAmt * steerSign
+    if (isLeft)  car.rotation.y += steerAmt * steerSign
+    if (isRight) car.rotation.y -= steerAmt * steerSign
 
-    // Movement
-    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
-    car.position.addScaledVector(forward, velocity.current * dt)
+    // ── Grip simulation — lateral inertia (PRD §7) ────────────
+    // gripFactor: 0.45 (loose) → 0.85 (locked-in)
+    const gripFactor = THREE.MathUtils.clamp(handling / 5.5, 0.45, 0.85)
+    if ((isLeft || isRight) && Math.abs(velocity.current) > 2) {
+      const slideForce = Math.abs(velocity.current) * steerAmt * 0.22 * (1 - gripFactor)
+      lateralVel.current += (isRight ? -1 : 1) * slideForce
+    }
+    // Grip bleeds off lateral velocity each frame
+    lateralVel.current *= Math.pow(1 - gripFactor, 60 * dt)
+    lateralVel.current = THREE.MathUtils.clamp(lateralVel.current, -6, 6)
+
+    // ── Movement (forward + lateral drift component) ───────────
+    car.position.addScaledVector(fwdVec, velocity.current * dt)
+    car.position.addScaledVector(rightVec, lateralVel.current * dt)
     car.position.y = 0.5
 
-    // ── Barrier collision (slide along walls) ────────────────
+    // ── Barrier collision (slide along walls) ─────────────────
     const info = nearestTrackInfo(car.position.x, car.position.z)
     const absDist = Math.abs(info.signedDist)
-    const maxDist = WALL_D - 1.4  // car half-width buffer
+    const maxDist = WALL_D - 1.4
 
     if (absDist > maxDist) {
-      // 1) Clamp position back to wall surface
       const sign = info.signedDist > 0 ? 1 : -1
-      const push = absDist - maxDist + 0.05        // small extra margin
+      const push = absDist - maxDist + 0.05
       car.position.x -= info.nx * push * sign
       car.position.z -= info.nz * push * sign
 
-      // 2) Remove the velocity component going INTO the wall
-      //    so the car slides along it instead of getting stuck
+      // Damp forward velocity going into wall
       const wallNx = info.nx * sign
       const wallNz = info.nz * sign
-      const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
-      const dotIntoWall = fwd.x * wallNx + fwd.z * wallNz
+      const dotIntoWall = fwdVec.x * wallNx + fwdVec.z * wallNz
       if ((dotIntoWall > 0 && velocity.current > 0) ||
           (dotIntoWall < 0 && velocity.current < 0)) {
-        // Reduce speed proportional to how head-on the collision is
-        const factor = Math.abs(dotIntoWall)   // 0 = parallel, 1 = head-on
-        velocity.current *= Math.max(1 - factor * 0.85, 0.08)
+        velocity.current *= Math.max(1 - Math.abs(dotIntoWall) * 0.85, 0.08)
       }
+      // Kill lateral drift into wall
+      lateralVel.current *= 0.2
     }
 
-    // Store updates
+    // ── Store updates ─────────────────────────────────────────
     setSpeed(Math.abs(velocity.current))
     setRaceTime(state.clock.getElapsedTime() - raceStartTimeRef.current)
     setCarPosition(car.position.x, car.position.z, car.rotation.y)
-
-    // Update engine sound based on speed relative to top speed (0 to 1)
     audioManager.updateEngineSound(Math.abs(velocity.current), topSpeed)
 
-    // --- Lap detection (cross Z=0 on the start straight) ---
+    // ── Gear-shift SFX ────────────────────────────────────────
+    const spd = Math.abs(velocity.current)
+    const r = spd / topSpeed
+    const curGear = spd < 0.5 ? 'N'
+      : r < 0.16 ? 1 : r < 0.32 ? 2 : r < 0.50 ? 3
+      : r < 0.67 ? 4 : r < 0.84 ? 5 : 6
+    if (curGear !== prevGearRef.current) {
+      if (prevGearRef.current !== 'N' && curGear !== 'N') audioManager.playGearShift()
+      prevGearRef.current = curGear
+    }
+
+    // ── Tire screech SFX ──────────────────────────────────────
+    const slip = Math.abs(lateralVel.current)
+    if (slip > 4.5 && raceStarted) {
+      audioManager.playTireScreech(Math.min((slip - 4.5) / 8, 1))
+    }
+
+    // ── Player race progress (for leaderboard) ────────────────
+    playerProgress.t   = info.frameIdx / SAMPLES
+    playerProgress.lap = useGameStore.getState().currentLap
+
+    // ── Lap detection ─────────────────────────────────────────
     const x = car.position.x
     const z = car.position.z
 
@@ -320,9 +443,12 @@ export default function Car() {
   })
 
   return (
-    <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
-      <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
-      <CarLights velocityRef={velocity} />
-    </group>
+    <>
+      <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
+        <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
+        <CarLights velocityRef={velocity} />
+      </group>
+      <TireSmoke carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />
+    </>
   )
 }

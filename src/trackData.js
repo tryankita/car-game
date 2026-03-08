@@ -13,6 +13,119 @@ import * as THREE from 'three'
 //    sfRange  – ± range for lap detection on X axis
 //    sfLeaveZ – how far from z=0 car must travel before a lap counts
 
+// ── 10 oval / straight-with-little-curves tracks (Levels 1-10) ─
+const OVAL_TRACKS = [
+  /* ── Level 1: First Oval – clean simple oval ─────────────── */
+  {
+    cp: [
+      [90, -160], [90, 0], [90, 160],
+      [0, 210],
+      [-90, 160], [-90, 0], [-90, -160],
+      [0, -210],
+    ],
+    spawn: [90, -10], sfX: 90, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 2: Wide Oval – detailed end arcs ───────────────── */
+  {
+    cp: [
+      [95, -170], [95, 0], [95, 170],
+      [48, 225], [0, 235], [-48, 225],
+      [-95, 170], [-95, 0], [-95, -170],
+      [-48, -225], [0, -235], [48, -225],
+    ],
+    spawn: [95, -10], sfX: 95, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 3: Kink Oval – gentle S-bend on one straight ───── */
+  {
+    cp: [
+      [95, -175], [101, -55], [89, 55], [95, 175],
+      [48, 228], [0, 238], [-48, 228],
+      [-95, 175], [-95, 0], [-95, -175],
+      [-48, -228], [0, -238], [48, -228],
+    ],
+    spawn: [95, -10], sfX: 95, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 4: Twin Kink – gentle S-bend on both straights ─── */
+  {
+    cp: [
+      [100, -180], [107, -55], [93, 55], [100, 180],
+      [50, 232], [0, 242], [-50, 232],
+      [-100, 180], [-107, 55], [-93, -55], [-100, -180],
+      [-50, -232], [0, -242], [50, -232],
+    ],
+    spawn: [100, -10], sfX: 100, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 5: Long Oval – wider turns, subtle wiggles ─────── */
+  {
+    cp: [
+      [105, -195], [111, -90], [99, 0], [111, 90], [105, 195],
+      [52, 250], [0, 260], [-52, 250],
+      [-105, 195], [-111, 90], [-99, 0], [-111, -90], [-105, -195],
+      [-52, -250], [0, -260], [52, -250],
+    ],
+    spawn: [105, -10], sfX: 105, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 6: Banked Oval – deeper kinks, longer straights ── */
+  {
+    cp: [
+      [108, -205], [116, -95], [100, 0], [116, 95], [108, 205],
+      [54, 260], [0, 272], [-54, 260],
+      [-108, 205], [-116, 95], [-100, 0], [-116, -95], [-108, -205],
+      [-54, -260], [0, -272], [54, -260],
+    ],
+    spawn: [108, -10], sfX: 108, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 7: Chicane Run – mild chicanes on main straight ── */
+  {
+    cp: [
+      [110, -215], [118, -130], [104, -55], [118, 15], [104, 90], [110, 215],
+      [55, 270], [0, 280], [-55, 270],
+      [-110, 215], [-118, 90], [-104, 0], [-118, -90], [-110, -215],
+      [-55, -270], [0, -280], [55, -270],
+    ],
+    spawn: [110, -10], sfX: 110, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 8: Dual Chicane – both straights have chicanes ─── */
+  {
+    cp: [
+      [112, -220], [120, -130], [104, -50], [120, 30], [104, 110], [112, 220],
+      [56, 278], [0, 290], [-56, 278],
+      [-112, 220], [-120, 110], [-104, 30], [-120, -50], [-104, -130], [-112, -220],
+      [-56, -278], [0, -290], [56, -278],
+    ],
+    spawn: [112, -10], sfX: 112, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 9: Speed Bowl – elongated with triple chicanes ─── */
+  {
+    cp: [
+      [115, -230], [124, -145], [106, -70], [124, -5], [106, 70], [124, 150], [115, 230],
+      [58, 290], [0, 302], [-58, 290],
+      [-115, 230], [-124, 120], [-106, 20], [-124, -100], [-115, -230],
+      [-58, -290], [0, -302], [58, -290],
+    ],
+    spawn: [115, -10], sfX: 115, sfRange: 15, sfLeaveZ: 40,
+  },
+
+  /* ── Level 10: Grand Oval – max complexity within oval ─────── */
+  {
+    cp: [
+      [118, -240], [128, -155], [108, -75], [128, -5], [108, 70], [128, 150], [118, 240],
+      [59, 300], [18, 314], [-18, 314], [-59, 300],
+      [-118, 240], [-128, 150], [-108, 70], [-128, -5], [-108, -75], [-128, -155], [-118, -240],
+      [-59, -300], [-18, -314], [18, -314], [59, -300],
+    ],
+    spawn: [118, -10], sfX: 118, sfRange: 15, sfLeaveZ: 40,
+  },
+]
+
 // ── 10 hand-crafted base tracks ─────────────────────────────
 const BASE_TRACKS = [
   /* ── Level 1: Rookie Run – L-shaped kink ────────────────── */
@@ -212,7 +325,7 @@ const TRANSFORMS = [
   { scale: 1.3,  angle: 45,  mX: false, mZ: false },  // 41-50
 ]
 
-export const LEVEL_TRACKS = [...BASE_TRACKS]
+export const LEVEL_TRACKS = [...OVAL_TRACKS]
 
 for (let batch = 0; batch < 4; batch++) {
   const t = TRANSFORMS[batch]
