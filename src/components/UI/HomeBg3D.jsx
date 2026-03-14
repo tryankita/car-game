@@ -114,7 +114,7 @@ function ShowBuildings() {
 
     for (let i = 0; i < 40; i++) {
       const angle = (i / 40) * Math.PI * 2
-      const dist = 55 + rng() * 35
+      const dist = 90 + rng() * 45
       const bx = Math.cos(angle) * dist
       const bz = Math.sin(angle) * dist
       const w = 4 + rng() * 10
@@ -207,12 +207,15 @@ function AutoCar() {
     const pos = SHOW_CURVE.getPointAt(t)
     const tg  = SHOW_CURVE.getTangentAt(t).normalize()
 
-    ref.current.position.set(pos.x, 0.1, pos.z)
+    ref.current.position.set(pos.x, 0.35, pos.z)
     ref.current.rotation.y = Math.atan2(-tg.x, tg.z)
   })
 
+  // Wrap in group so we can add a local Y offset for the model
   return (
-    <primitive ref={ref} object={cloned} scale={1.5} position={[50, 0.1, -35]} />
+    <group ref={ref} position={[50, 0.35, -35]}>
+      <primitive object={cloned} scale={1.5} position={[0, 0.35, 0]} />
+    </group>
   )
 }
 
@@ -223,7 +226,7 @@ function FallbackCar() {
     const t = (clock.getElapsedTime() * CAR_SPEED) % 1
     const pos = SHOW_CURVE.getPointAt(t)
     const tg  = SHOW_CURVE.getTangentAt(t).normalize()
-    ref.current.position.set(pos.x, 0.5, pos.z)
+    ref.current.position.set(pos.x, 0.35, pos.z)
     ref.current.rotation.y = Math.atan2(-tg.x, tg.z)
   })
   return (
@@ -236,27 +239,31 @@ function FallbackCar() {
   )
 }
 
-// ── Cinematic camera that follows & orbits ──────────────────
+// ── Cinematic chase camera — always behind the car, elevated ─
+const _chaseOff = new THREE.Vector3()
+const _chaseTgt = new THREE.Vector3()
+
 function CinematicCamera() {
   useFrame(({ camera, clock }) => {
     const elapsed = clock.getElapsedTime()
     const t = (elapsed * CAR_SPEED) % 1
 
     const carPos = SHOW_CURVE.getPointAt(t)
+    const carTan = SHOW_CURVE.getTangentAt(t).normalize()
 
-    // Slowly orbit around the car + slight up/down sway
-    const orbitSpeed = 0.08
-    const orbitAngle = elapsed * orbitSpeed
-    const camDist = 22 + Math.sin(elapsed * 0.15) * 6
-    const camH = 10 + Math.sin(elapsed * 0.12) * 4
+    // Position camera behind and above the car
+    const camDist = 24 + Math.sin(elapsed * 0.18) * 3
+    const camH    = 10 + Math.sin(elapsed * 0.13) * 2
+    // Slight lateral sway so it isn't perfectly rigid
+    const sway    = Math.sin(elapsed * 0.22) * 4
 
-    const cx = carPos.x + Math.cos(orbitAngle) * camDist
-    const cz = carPos.z + Math.sin(orbitAngle) * camDist
+    const right = new THREE.Vector3(-carTan.z, 0, carTan.x)
+    _chaseOff.copy(carTan).multiplyScalar(-camDist)
+    _chaseOff.addScaledVector(right, sway)
+    _chaseOff.y = camH
 
-    camera.position.lerp(
-      new THREE.Vector3(cx, camH, cz),
-      0.025
-    )
+    _chaseTgt.set(carPos.x + _chaseOff.x, _chaseOff.y, carPos.z + _chaseOff.z)
+    camera.position.lerp(_chaseTgt, 0.035)
     camera.lookAt(carPos.x, 1.5, carPos.z)
   })
   return null

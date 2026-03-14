@@ -13,23 +13,109 @@ import {
    Collision is handled in Car.jsx via shared trackData.
    ═══════════════════════════════════════════════════════════════ */
 
+// ── Procedural asphalt texture ─────────────────────────────
+function makeAsphaltTexture() {
+  const size = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = size; canvas.height = size
+  const ctx = canvas.getContext('2d')
+
+  // Base dark grey asphalt
+  ctx.fillStyle = '#1c1c1c'
+  ctx.fillRect(0, 0, size, size)
+
+  // Noise grain — random light/dark pixels to simulate aggregate
+  const imgData = ctx.getImageData(0, 0, size, size)
+  const d = imgData.data
+  for (let i = 0; i < d.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 22
+    d[i]     = Math.max(0, Math.min(255, d[i]     + noise))
+    d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + noise))
+    d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + noise))
+  }
+  ctx.putImageData(imgData, 0, 0)
+
+  // Subtle tire marks (long faint dark streaks along V axis)
+  ctx.globalAlpha = 0.12
+  ctx.strokeStyle = '#0a0a0a'
+  ctx.lineWidth = 3
+  for (let t = 0; t < 6; t++) {
+    const x = 100 + Math.random() * (size - 200)
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x + (Math.random() - 0.5) * 8, size)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1.0
+
+  // Subtle patching — lighter grey rectangles
+  ctx.globalAlpha = 0.06
+  for (let p = 0; p < 3; p++) {
+    const px = Math.random() * size
+    const py = Math.random() * size
+    ctx.fillStyle = '#3a3a3a'
+    ctx.fillRect(px, py, 30 + Math.random() * 50, 60 + Math.random() * 120)
+  }
+  ctx.globalAlpha = 1.0
+
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(1, 1)
+  tex.anisotropy = 4
+  return tex
+}
+
+// ── Procedural normal map for asphalt bumps ────────────────
+function makeAsphaltNormal() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size; canvas.height = size
+  const ctx = canvas.getContext('2d')
+
+  // Flat normal base (128, 128, 255) = pointing up
+  ctx.fillStyle = 'rgb(128, 128, 255)'
+  ctx.fillRect(0, 0, size, size)
+
+  const imgData = ctx.getImageData(0, 0, size, size)
+  const d = imgData.data
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]     = 128 + (Math.random() - 0.5) * 18  // R = X normal
+    d[i + 1] = 128 + (Math.random() - 0.5) * 18  // G = Y normal
+    // B stays ~255 (pointing up)
+  }
+  ctx.putImageData(imgData, 0, 0)
+
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(1, 1)
+  return tex
+}
+
 // ────────────────────────────────────────────────────────────
 //  Geometry builders
 // ────────────────────────────────────────────────────────────
 function flatStrip(frames, width, y) {
   const hw = width / 2, len = frames.length
   const pos = new Float32Array(len * 6)
+  const uv  = new Float32Array(len * 4)
   const idx = []
   for (let i = 0; i < len; i++) {
     const { p, nm } = frames[i]
     const j = i * 6
     pos[j]     = p.x + nm.x * hw; pos[j+1] = y; pos[j+2] = p.z + nm.z * hw
     pos[j+3] = p.x - nm.x * hw; pos[j+4] = y; pos[j+5] = p.z - nm.z * hw
+    // UVs: u across road (0→1), v along track (repeats every ~20 segments)
+    const v = i / 20
+    uv[i * 4]     = 0; uv[i * 4 + 1] = v
+    uv[i * 4 + 2] = 1; uv[i * 4 + 3] = v
     const nx = (i + 1) % len
     idx.push(i*2, nx*2, i*2+1, i*2+1, nx*2, nx*2+1)
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
   g.setIndex(idx); g.computeVertexNormals()
   return g
 }
@@ -584,6 +670,10 @@ export default function Track() {
     color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 0.15,
   }), [])
 
+  // Procedural asphalt textures
+  const asphaltMap    = useMemo(() => makeAsphaltTexture(), [])
+  const asphaltNormal = useMemo(() => makeAsphaltNormal(), [])
+
   const roadG      = useMemo(() => flatStrip(frames, ROAD_W, 0.01), [frames])
   const innerSW    = useMemo(() => ringStrip(frames, HW, HW + SW_W, 0.05), [frames])
   const outerSW    = useMemo(() => ringStrip(frames, -(HW + SW_W), -HW, 0.05), [frames])
@@ -706,9 +796,15 @@ export default function Track() {
         <meshStandardMaterial color="#3a7a2a" roughness={0.95} />
       </mesh>
 
-      {/* Road — dark asphalt with subtle specular sheen */}
+      {/* Road — textured asphalt with tyre marks and specular sheen */}
       <mesh geometry={roadG} receiveShadow castShadow>
-        <meshStandardMaterial color="#1e1e1e" roughness={0.78} metalness={0.08} />
+        <meshStandardMaterial
+          map={asphaltMap}
+          normalMap={asphaltNormal}
+          normalScale={[0.3, 0.3]}
+          roughness={0.72}
+          metalness={0.08}
+        />
       </mesh>
 
       {/* Run-off / kerb shoulder — matches F1 circuit green tarmac */}

@@ -1,0 +1,1101 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { CityMap } from './maps/CityMap.js';
+import { DesertMap } from './maps/DesertMap.js';
+import { SnowMap } from './maps/SnowMap.js';
+import { CyberCityMap } from './maps/CyberCityMap.js';
+
+export class EntityManager {
+    constructor(scene, roadLength, roadWidth) {
+        this.scene = scene;
+        this.roadLength = roadLength;
+        this.roadWidth = roadWidth;
+        this.sceneryRecycleDistance = 150;
+
+        this.currentMapType = 'city';
+        this.cityMap = new CityMap(scene, roadWidth, roadLength);
+        this.desertMap = new DesertMap(scene, roadWidth, roadLength);
+        this.snowMap = new SnowMap(scene, roadWidth, roadLength);
+        this.cyberCityMap = new CyberCityMap(scene, roadWidth, roadLength);
+
+        // Entities
+        this.carModel = null;
+        this.enemyModel = null; // Separate model for enemies
+        this.enemyCars = []; // Array to support multiple enemies if needed
+        this.points = [];
+        this.roadLines = [];
+        this.buildings = [];
+        this.kerbs = [];
+        this.boosts = [];
+        this.pedestrians = []; // New pedestrian list
+        this.footpaths = []; // New footpath list
+        this.extras = []; // Extra map-specific meshes to clear
+        this.snowSystem = null; // Particle system for snow
+
+        // Constants / Config
+        this.carBaseY = 0;
+        this.kerbWidth = 0.3;
+        this.pointRadius = 0.3;
+        this.buildingSpacing = 60; // Increased to 60 to significantly optimize performance for HD graphics
+        this.lightSpacing = 40;
+
+        // State
+        this.playerBox = new THREE.Box3();
+        this.enemyBox = new THREE.Box3();
+        this.pointBox = new THREE.Box3();
+        this.boostBox = new THREE.Box3();
+
+        // distinct color logic
+        this.availableColors = [
+            0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
+            0xffa500, 0x800080, 0x008000, 0x000080, 0xffc0cb, 0x40E0D0
+        ];
+        this.lastColorIndex = -1;
+
+        // --- Performance Optimizations: Cache Resources ---
+        this.cacheResources();
+    }
+
+    cacheResources() {
+        // 1. Shared Geometries (Unit sizing for scaling)
+        this.unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+        this.unitCylinderGeo = new THREE.CylinderGeometry(1, 1, 1, 8); // Base cylinder
+
+        const urbanColors = [
+            // User Requested Medium/Light Greys (From Image)
+            0x7f8c8d, // Medium Slate Grey
+            0x95a5a6, // Cool Concrete Grey
+            0x607d8b, // Blue Grey
+
+            // Dark Greys & Charcoals
+            0x2f3542,
+            0x1e272e,
+            0x2d3436,
+            0x3d3d3d,
+            0x4b4b4b,
+            0x1c1c1c, // Obsidian
+
+            // Dark Navy Blues
+            0x192a56, // Dark Navy
+            0x2c3e50, // Midnight Blue
+            0x1a252f, // Very Dark Blue
+            0x273c75, // Mazarine Blue
+            0x222f3e  // Imperial Black/Blue
+        ];
+        this.buildingMaterials = urbanColors.map(c => new THREE.MeshStandardMaterial({ color: c }));
+
+        this.capMatSnow = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        this.capMatCity = new THREE.MeshStandardMaterial({ color: 0x1e272e });
+
+        // 3. Window Texture (Generated ONCE)
+        this.windowMaterial = this.createWindowMaterial();
+
+        // 4. Skyline Billboard Texture (Generated ONCE)
+        this.skylineTex = this.createSkylineTexture();
+
+        // 5. Boost Sprite Texture (Generated ONCE)
+        this.boostSpriteTex = this.createBoostTexture();
+    }
+
+    createWindowMaterial() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        // Clear with transparent background
+        ctx.clearRect(0, 0, 64, 64);
+
+        // No background fill -> Transparent!
+
+        // Pure White Window Light
+        ctx.fillStyle = '#ffffff';
+
+        // Single Large Window for "Less Winds" look
+        const winW = 24;
+        const winH = 34;
+        const x = (64 - winW) / 2;
+        const y = (64 - winH) / 2;
+
+        ctx.fillRect(x, y, winW, winH);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+
+        // High quality filtering for premium look
+        tex.minFilter = THREE.LinearMipMapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = 16; // Max quality filtering
+
+        // Use transparent material so building color shows through
+        return new THREE.MeshStandardMaterial({
+            map: tex,
+            emissive: 0xffffff, // White Glow
+            emissiveMap: tex,
+            emissiveIntensity: 1.0, // Bright white
+            transparent: true,
+            side: THREE.FrontSide
+        });
+    }
+
+    createSkylineTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Simple Building Silhouette Gradient
+        const grad = ctx.createLinearGradient(0, 512, 0, 0);
+        grad.addColorStop(0, '#2c3e50');
+        grad.addColorStop(1, '#34495e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(40, 50, 176, 462);
+
+        // Add random windows
+        ctx.fillStyle = '#f1c40f';
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 4; c++) {
+                if (Math.random() > 0.3) ctx.fillRect(60 + c * 35, 80 + r * 25, 20, 15);
+            }
+        }
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    createBoostTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, 'rgba(255, 71, 87, 0.8)');
+        grad.addColorStop(1, 'rgba(255, 71, 87, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    getDistinctColor() {
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * this.availableColors.length);
+        } while (newIndex === this.lastColorIndex);
+
+        this.lastColorIndex = newIndex;
+        return new THREE.Color(this.availableColors[newIndex]);
+    }
+
+    async loadAssets(onProgress) {
+        // Immediately show 25% so it doesn't stay at 0%
+        if (onProgress) onProgress(0.25);
+
+        const loadingManager = new THREE.LoadingManager();
+        loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+            // Map actual progress (0 to 1) into (0.25 to 1.0) range
+            const p = 0.25 + (itemsLoaded / itemsTotal) * 0.75;
+            if (onProgress) onProgress(p);
+        };
+
+        const loader = new GLTFLoader(loadingManager);
+        const dracoLoader = new DRACOLoader(loadingManager);
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+        loader.setDRACOLoader(dracoLoader);
+
+        return new Promise((resolve, reject) => {
+            // Load Player Car (Ferrari)
+            const p1 = new Promise(r => loader.load('https://threejs.org/examples/models/gltf/ferrari.glb', (gltf) => {
+                this.setupPlayerCar(gltf.scene);
+                r();
+            }, (xhr) => {
+                // Individual file progress for smoother feedback
+                if (xhr.lengthComputable && onProgress) {
+                    const fileP = (xhr.loaded / xhr.total) * 0.5; // Weight car as 50%
+                    onProgress(0.25 + fileP);
+                }
+            }, (err) => {
+                console.error("Player car failed", err);
+                this.createFallbackCar();
+                r();
+            }));
+
+            p1.then(() => {
+                try {
+                    this.createLevel();
+                    if (onProgress) onProgress(1.0); // Complete
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
+            }).catch(reject);
+        });
+    }
+
+    setupEnemyModel(model) {
+        this.enemyModel = model;
+        // Adjust scale/rotation if needed for this specific model
+        // User reported it's too small, so increasing significantly.
+        // Assuming original model unit is meters or similar. 
+        this.enemyModel.scale.set(1.5, 1.5, 1.5);
+
+        this.enemyModel.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+    }
+
+    setupPlayerCar(model) {
+        this.carModel = model;
+        this.carModel.scale.set(0.8, 0.8, 0.8);
+
+        const box = new THREE.Box3().setFromObject(this.carModel);
+        this.carBaseY = -box.min.y + 0.01;
+
+        this.carModel.position.set(0, this.carBaseY, 0);
+        this.carModel.rotation.y = Math.PI; // Face forward
+
+        this.carModel.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+
+                // Clone material
+                const newMat = node.material.clone();
+                const name = node.name.toLowerCase();
+
+                // Exclude obvious non-body parts
+                const isWheel = name.includes('wheel') || name.includes('tire') || name.includes('rim') || name.includes('brake');
+                const isGlass = name.includes('glass') || name.includes('window') || name.includes('windshield') || newMat.opacity < 0.9;
+                const isInterior = name.includes('interior') || name.includes('seat') || name.includes('dashboard') || name.includes('steering');
+                const isLight = name.includes('light') || name.includes('lamp');
+
+                // Determine if it is likely the body
+                // The main body usually has the largest surface area or specific material properties
+                // Heuristic: If it's not excluded, and it's metallic/shiny, OR explicitly named body/paint
+                let isBody = (name.includes('body') || name.includes('paint') || name.includes('chassis') || name.includes('main'));
+
+                // Fallback: If not named, guess by material type (shiny paint)
+                if (!isBody && !isWheel && !isGlass && !isInterior && !isLight) {
+                    if (newMat.metalness > 0.4 && newMat.roughness < 0.6) {
+                        isBody = true;
+                    }
+                }
+
+                if (isBody) {
+                    if (this.mapType === 'snow') {
+                        // Force Red
+                        newMat.color.set(0xff0000);
+                        newMat.emissive.set(0x000000); // Clear any emissive
+                    } else {
+                        newMat.color.set(0x222222); // Dark Charcoal
+                    }
+                }
+
+                node.material = newMat;
+            }
+        });
+        this.scene.add(this.carModel);
+        this.addHeadlights(this.carModel, true);
+        this.setupNitroExhaust(this.carModel);
+    }
+
+    addHeadlights(car, isPlayer = false) {
+        // Create 2 spot lights for headlights
+        car.userData.headlights = [];
+        const headlightColor = 0xffffdf;
+        const intensity = 0; // Start off
+
+        // Left
+        // Increased angle and distance for better road visibility
+        const leftHeadlight = new THREE.SpotLight(headlightColor, intensity, 100, Math.PI / 3, 0.5, 1);
+        leftHeadlight.position.set(0.6, 0.5, -1.8);
+        const leftTarget = new THREE.Object3D();
+        leftTarget.position.set(0.6, 0.0, -30); // Aim further down the road
+        car.add(leftHeadlight);
+        car.add(leftTarget);
+        leftHeadlight.target = leftTarget;
+
+        // Right
+        const rightHeadlight = new THREE.SpotLight(headlightColor, intensity, 100, Math.PI / 3, 0.5, 1);
+        rightHeadlight.position.set(-0.6, 0.5, -1.8);
+        const rightTarget = new THREE.Object3D();
+        rightTarget.position.set(-0.6, 0.0, -30); // Aim further down the road
+        car.add(rightHeadlight);
+        car.add(rightTarget);
+        rightHeadlight.target = rightTarget;
+
+        car.userData.headlights.push(leftHeadlight, rightHeadlight);
+    }
+
+    setupNitroExhaust(car) {
+        car.userData.exhaustFlames = [];
+
+        // Create 2 exhaust flames
+        const positions = [[-0.4, 0.4, 1.8], [0.4, 0.4, 1.8]];
+
+        positions.forEach(pos => {
+            const flameGeo = new THREE.ConeGeometry(0.12, 1.2, 8);
+            flameGeo.rotateX(-Math.PI / 2); // Point backward
+
+            const flameMat = new THREE.MeshBasicMaterial({
+                color: 0x00d2ff, // Outer glow blue
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending
+            });
+
+            const flame = new THREE.Mesh(flameGeo, flameMat);
+            flame.position.set(...pos);
+            flame.scale.set(1, 1, 1);
+
+            // Inner core flame
+            const coreGeo = new THREE.ConeGeometry(0.06, 0.8, 8);
+            coreGeo.rotateX(-Math.PI / 2);
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending
+            });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            flame.add(core);
+
+            car.add(flame);
+            car.userData.exhaustFlames.push(flame);
+        });
+    }
+
+    setNitroExhaust(active) {
+        if (!this.carModel || !this.carModel.userData.exhaustFlames) return;
+
+        this.carModel.userData.exhaustFlames.forEach(flame => {
+            if (active) {
+                flame.material.opacity = 0.8;
+                flame.children[0].material.opacity = 0.9;
+
+                // Pulsing scale
+                const pulse = 1.0 + Math.sin(Date.now() * 0.04) * 0.2;
+                flame.scale.set(pulse, pulse, pulse * 1.5);
+
+                // Shift color slightly for heat effect
+                flame.material.color.setHSL(0.55 + Math.sin(Date.now() * 0.01) * 0.05, 1, 0.5);
+            } else {
+                flame.material.opacity = 0;
+                flame.children[0].material.opacity = 0;
+            }
+        });
+    }
+
+    createFallbackCar() {
+        const geo = new THREE.BoxGeometry(2, 1, 4);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        this.carModel = new THREE.Mesh(geo, mat);
+        this.carBaseY = 0.51;
+        this.carModel.position.set(0, this.carBaseY, 0);
+        this.scene.add(this.carModel);
+    }
+
+    spawnEnemy() {
+        if (!this.carModel) return;
+
+        // Use the Ferrari model (this.carModel) as requested
+        const enemy = this.carModel.clone();
+
+        const distinctColor = this.getDistinctColor();
+        enemy.traverse((node) => {
+            if (node.isMesh) {
+                // Heuristic for Ferrari model:
+                // Parts are often named. Let's try to find "Body" or similar, 
+                // OR fallback to metalness but exclude very specific known parts if possible.
+                // In standard GLTF Ferrari example:
+                // "body" is the main red part. "glass" is windows. "wheel" etc.
+
+                // We will clone material first
+                const newMat = node.material.clone();
+
+                // Check for body-like properties or names
+                // The example Ferrari usually has a red material. We can check if original color is red-ish?
+                // Or just use the metalness check again but lets be more careful.
+                const isBody = (node.name.toLowerCase().includes('body') ||
+                    (newMat.metalness > 0.4 && newMat.roughness < 0.6));
+
+                if (isBody) {
+                    newMat.color.set(distinctColor);
+                }
+
+                node.material = newMat;
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+
+
+        const lanes = [-3, 0, 3];
+        const laneX = lanes[Math.floor(Math.random() * lanes.length)];
+
+        enemy.position.set(laneX, this.carBaseY, this.roadLength * 0.7);
+        enemy.rotation.y = Math.PI; // Face player
+
+        this.addHeadlights(enemy);
+        this.enemyCars.push(enemy);
+        this.scene.add(enemy);
+        console.log("Spawned enemy Ferrari at", laneX);
+    }
+
+    setMap(type) {
+        this.currentMapType = type;
+    }
+
+    createLevel() {
+        // Clear existing map-specific entities if any (on restart)
+        this.buildings.forEach(b => this.scene.remove(b));
+        this.footpaths.forEach(f => this.scene.remove(f));
+        this.roadLines.forEach(l => this.scene.remove(l));
+        this.pedestrians.forEach(p => this.scene.remove(p));
+        this.kerbs.forEach(k => this.scene.remove(k));
+
+        if (this.roadMesh) this.scene.remove(this.roadMesh);
+        if (this.groundMesh) this.scene.remove(this.groundMesh);
+        if (this.skylineBillboards) this.skylineBillboards.forEach(b => this.scene.remove(b));
+        if (this.extras) this.extras.forEach(e => this.scene.remove(e));
+
+        // Reset spawn collision hooks
+        delete this.spawnBuildingPairAt;
+
+        this.buildings = [];
+        this.footpaths = [];
+        this.roadLines = [];
+        this.pedestrians = [];
+        this.kerbs = [];
+        this.skylineBillboards = [];
+        this.extras = [];
+
+        // Clear Snow System
+        if (this.snowSystem) {
+            this.scene.remove(this.snowSystem);
+            this.snowSystem = null;
+        }
+
+        // Generate map
+        switch (this.currentMapType) {
+            case 'desert': this.desertMap.createLevel(this); break;
+            case 'snow': this.snowMap.createLevel(this); break;
+            case 'cybercity': this.cyberCityMap.createLevel(this); break;
+            default: this.cityMap.createLevel(this); break;
+        }
+
+        // Apply car color based on map type (force update)
+        this.updateCarColor();
+
+        // --- COMMON ENTITIES (Shared across all maps) ---
+
+        // keep common entities (points, boosts, enemies).
+
+        // --- Points (Gold Coins) ---
+        const coinGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 16);
+        const coinMat = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            metalness: 0.8,
+            roughness: 0.2,
+            emissive: 0xffd700,
+            emissiveIntensity: 0.4
+        });
+
+        // Only spawn initial if they don't exist
+        if (this.points.length === 0) {
+            for (let i = 0; i < 8; i++) { // Reduced count to 8
+                const p = new THREE.Mesh(coinGeo, coinMat);
+                p.rotation.x = Math.PI / 2;
+                this.resetPoint(p, true);
+                this.points.push(p);
+                this.scene.add(p);
+            }
+        }
+
+        // Initial Enemy
+        if (this.enemyCars.length === 0) {
+            this.spawnEnemy();
+        }
+
+        // --- Boosts ---
+        if (this.boosts.length === 0) {
+            for (let i = 0; i < 1; i++) {
+                const b = this.createBoostMesh();
+                this.resetBoost(b, true);
+                this.boosts.push(b);
+                this.scene.add(b);
+            }
+        }
+    }
+
+    spawnBuildingPairAt(zPos) {
+        // Left
+        const bL = this.createBuildingMesh();
+        const buildingWidth = bL.userData.width || 8;
+        // Calculation: roadWidth/2 + sideWalkWidth (5) + buildingWidth/2 + buffer (2)
+        const xL = -(this.roadWidth / 2 + 5 + buildingWidth / 2 + 2 + Math.random() * 3);
+        bL.position.set(xL, bL.userData.height / 2, zPos);
+        this.buildings.push(bL);
+        this.scene.add(bL);
+
+        // Right
+        const bR = this.createBuildingMesh();
+        const xR = (this.roadWidth / 2 + 5 + buildingWidth / 2 + 2 + Math.random() * 3);
+        bR.position.set(xR, bR.userData.height / 2, zPos);
+        this.buildings.push(bR);
+        this.scene.add(bR);
+    }
+
+    spawnSkylineBillboard(zPos) {
+        if (!this.skylineTex) return;
+
+        const mat = new THREE.SpriteMaterial({ map: this.skylineTex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const dist = 80 + Math.random() * 100;
+        sprite.position.set(side * dist, 50, zPos);
+        sprite.scale.set(40, 100, 1);
+
+        this.skylineBillboards.push(sprite);
+        this.scene.add(sprite);
+    }
+
+    spawnBackdropBuilding(zPos) {
+        // Reduced frequency of 3D backdrop buildings to favor billboards
+        if (Math.random() > 0.5) return;
+
+        for (let side = -1; side <= 1; side += 2) {
+            const b = this.createBuildingMesh(true);
+            const dist = 50 + Math.random() * 40;
+            b.position.set(side * dist, b.userData.height / 2, zPos);
+            this.buildings.push(b);
+            this.scene.add(b);
+        }
+    }
+
+    spawnBuildingPair(index) {
+        // Legacy method, replaced by spawnBuildingPairAt
+    }
+
+    createBuildingMesh(isLarge = false) {
+        const w = (6 + Math.random() * 4) * (isLarge ? 2 : 1);
+        const h = (15 + Math.random() * 30) * (isLarge ? 2.5 : 1);
+        const d = (6 + Math.random() * 4) * (isLarge ? 2 : 1);
+
+        const group = new THREE.Group();
+
+        // Body - REUSE GEOMETRY & MATERIALS
+        // Use cached material from array
+        // Randomly pick color
+        const bodyMat = this.buildingMaterials[Math.floor(Math.random() * this.buildingMaterials.length)];
+        const body = new THREE.Mesh(this.unitBoxGeo, bodyMat);
+
+        // Logic: Unit box is 1x1x1. Scale it to w, h, d.
+        body.scale.set(w, h, d);
+
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+
+        // Roof Cap
+        const capColorMat = (this.currentMapType === 'snow') ? this.capMatSnow : this.capMatCity;
+        const cap = new THREE.Mesh(this.unitBoxGeo, capColorMat);
+        cap.scale.set(w + 0.5, 1, d + 0.5);
+        cap.position.y = h / 2 + 0.5;
+        group.add(cap);
+
+        // Windows Optimization: Use Texture Tiling instead of Geometry Merging
+        // Create a separate box slightly larger than body for windows
+        if (Math.random() > 0.3 && this.windowMaterial && this.windowMaterial.map) {
+            // Clone texture to allow independent repetition adjustment per building?
+            // Or just update UVs? Updating UVs on shared unitGeo is bad.
+            // Better to clone the material or texture? No, texture is heavy.
+            // Best standard threejs way: Set texture repeat on cloned texture, OR use geometry scaling with UV scaling.
+            // Simplest for performance: Map uses texture repeat.
+            const winMat = this.windowMaterial.clone();
+            // We clone material (lightweight) to set specific texture repeat
+            const tex = winMat.map.clone(); // Clone texture wrapper (lightweight pointer to source image)
+            winMat.map = tex;
+            winMat.emissiveMap = tex;
+
+            // Adjust repeat based on building size - SCALED DOWN for fewer windows
+            // Was w/2, h/4. Now making tiles larger (dividing by larger number means fewer tiles?? No.)
+            // Texture Repeat: Higher number = more repetitions = smaller windows.
+            // Lower number = fewer repetitions = larger windows.
+            // We want FEWER windows. So we want Lower Repeat.
+            tex.repeat.set(Math.max(1, Math.floor(w / 3)), Math.max(1, Math.floor(h / 5)));
+            tex.needsUpdate = true;
+
+            // Set transparent true
+            winMat.transparent = true;
+            winMat.opacity = 1;
+
+            const winBox = new THREE.Mesh(this.unitBoxGeo, winMat);
+            // Slightly larger than body so it z-fights or sits on top? 
+            // Better: Make it same size but use offset? Or slightly larger.
+            winBox.scale.set(w + 0.1, h * 0.99, d + 0.1);
+            // Add to group
+            group.add(winBox);
+        }
+
+        // Store info for positioning
+        group.userData = { height: h, width: w };
+        return group;
+    }
+
+    spawnTreePairAt(zPos) {
+        const leftTree = this.createTree();
+        const xL = -(this.roadWidth / 2 + 5 + 1 + Math.random() * 3);
+        leftTree.position.set(xL, 0, zPos);
+        this.buildings.push(leftTree);
+        this.scene.add(leftTree);
+
+        const rightTree = this.createTree();
+        const xR = (this.roadWidth / 2 + 5 + 1 + Math.random() * 3);
+        rightTree.position.set(xR, 0, zPos);
+        this.buildings.push(rightTree);
+        this.scene.add(rightTree);
+    }
+
+    spawnTreePair(index) {
+        // Legacy
+    }
+
+    updateCarColor() {
+        if (!this.carModel) return;
+
+        this.carModel.traverse((node) => {
+            if (node.isMesh) {
+                // Heuristic: Check name OR material properties
+                const name = node.name.toLowerCase();
+                const mat = node.material;
+
+                // Exclude obvious non-body parts
+                const isWheel = name.includes('wheel') || name.includes('tire') || name.includes('rim') || name.includes('brake');
+                const isGlass = name.includes('glass') || name.includes('window') || name.includes('windshield') || mat.opacity < 0.9;
+                const isInterior = name.includes('interior') || name.includes('seat') || name.includes('dashboard') || name.includes('steering');
+                const isLight = name.includes('light') || name.includes('lamp');
+
+                // Determine if it is likely the body
+                let isBody = (name.includes('body') || name.includes('paint') || name.includes('chassis') || name.includes('main'));
+
+                if (!isBody && !isWheel && !isGlass && !isInterior && !isLight) {
+                    // Force guess if it looks like car paint (shiny, not too rough)
+                    if (mat.metalness > 0.4 && mat.roughness < 0.6) {
+                        isBody = true;
+                    }
+                }
+
+                if (isBody) {
+                    if (this.currentMapType === 'snow') {
+                        node.material.color.set(0xff2a2a); // Lighter Red
+                        node.material.metalness = 0.6; // Reduce metalness for brighter look
+                        node.material.roughness = 0.3; // Reduce gloss slightly
+                        // Keep subtle emissive for night visibility but lighter
+                        if (node.material.emissive) {
+                            node.material.emissive.set(0x550000);
+                            node.material.emissiveIntensity = 0.4;
+                        }
+                    } else if (this.currentMapType === 'cybercity') {
+                        node.material.color.set(0x00ffff); // Electric Cyan
+                        node.material.metalness = 0.9;
+                        node.material.roughness = 0.1;
+                        if (node.material.emissive) {
+                            node.material.emissive.set(0x00aaaa); // Strong Cyan Glow
+                            node.material.emissiveIntensity = 0.8;
+                        }
+                    } else {
+                        // Default / Desert / City - Standard Black Car
+                        node.material.color.set(0x111111); // Deep Black
+                        node.material.metalness = 0.6;
+                        node.material.roughness = 0.4;
+                        if (node.material.emissive) {
+                            node.material.emissive.set(0x000000); // No glow
+                            node.material.emissiveIntensity = 0.0;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createTree() {
+        const group = new THREE.Group();
+
+        // Trunk
+        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d3a1a });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 1;
+        trunk.castShadow = true;
+        group.add(trunk);
+
+        // Leaves
+        const leafColor = (this.currentMapType === 'snow') ? 0xffffff : 0x2d5a27;
+        const leafMat = new THREE.MeshStandardMaterial({ color: leafColor });
+
+        for (let i = 0; i < 3; i++) {
+            const lGeo = new THREE.ConeGeometry(1.5 - i * 0.3, 2, 8);
+            const leaf = new THREE.Mesh(lGeo, leafMat);
+            leaf.position.y = 2 + i * 1.2;
+            leaf.castShadow = true;
+            group.add(leaf);
+        }
+
+        return group;
+    }
+
+    spawnPedestrian(zPos) {
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const x = side * (this.roadWidth / 2 + 1 + Math.random() * 3);
+
+        const p = this.createPerson();
+        p.position.set(x, 0, zPos);
+        // Random walking speed and direction
+        p.userData = {
+            speed: (0.5 + Math.random()) * 0.05,
+            dir: Math.random() > 0.5 ? 1 : -1
+        };
+        this.pedestrians.push(p);
+        this.scene.add(p);
+    }
+
+    createBoostMesh() {
+        const group = new THREE.Group();
+        const red = 0xff4757;
+
+        // Use Unit Geo with scaling
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color: red,
+            metalness: 0.9,
+            roughness: 0.1,
+            emissive: red,
+            emissiveIntensity: 0.5
+        });
+
+        // Main Bottle Body
+        const body = new THREE.Mesh(this.unitCylinderGeo || new THREE.CylinderGeometry(1, 1, 1), bodyMat);
+        body.scale.set(0.3, 0.8, 0.3); // Scale unit cylinder
+        body.castShadow = true;
+        group.add(body);
+
+        // Bottle Neck
+        const neck = new THREE.Mesh(this.unitCylinderGeo || new THREE.CylinderGeometry(1, 1, 1), bodyMat);
+        neck.scale.set(0.12, 0.2, 0.12);
+        neck.position.y = 0.5;
+        group.add(neck);
+
+        // Bottle Cap
+        const capMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, metalness: 0.5 });
+        const cap = new THREE.Mesh(this.unitCylinderGeo || new THREE.CylinderGeometry(1, 1, 1), capMat);
+        cap.scale.set(0.15, 0.1, 0.15);
+        cap.position.y = 0.65;
+        group.add(cap);
+
+        // Glowing Aura Sprite
+        if (this.boostSpriteTex) {
+            const spriteMat = new THREE.SpriteMaterial({
+                map: this.boostSpriteTex,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(1.5, 1.5, 1);
+            group.add(sprite);
+        }
+
+        return group;
+    }
+
+    createPerson() {
+        const group = new THREE.Group();
+        const bodyGeo = new THREE.BoxGeometry(0.4, 0.8, 0.2);
+        const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const skinColor = [0xffdbac, 0xf1c27d, 0xe0ac69, 0x8d5524][Math.floor(Math.random() * 4)];
+        const shirtColor = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf1c40f][Math.floor(Math.random() * 4)];
+
+        const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: shirtColor }));
+        body.position.y = 0.8;
+        body.castShadow = true;
+        group.add(body);
+
+        const head = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: skinColor }));
+        head.position.y = 1.35;
+        head.castShadow = true;
+        group.add(head);
+
+        return group;
+    }
+
+    resetPoint(point, initial = false) {
+        const laneWidth = this.roadWidth / 2 - this.kerbWidth - 1;
+        point.position.x = (Math.random() * 2 - 1) * laneWidth;
+        point.position.y = this.pointRadius + 0.1;
+
+        // Improved recycling logic
+        if (initial) {
+            point.position.z = (Math.random() * this.roadLength) - (this.roadLength * 0.4);
+        } else {
+            // Recycle further ahead and spread them out significantly
+            // Was * 0.6 + 30. Now * 0.8 + 150 to create more spacing.
+            point.position.z = this.roadLength * 0.8 + Math.random() * 150;
+        }
+        point.visible = true;
+    }
+
+    resetBoost(boost, initial = false) {
+        const laneWidth = this.roadWidth / 2 - this.kerbWidth - 1;
+        boost.position.x = (Math.random() * 2 - 1) * laneWidth;
+        boost.position.y = this.pointRadius + 0.5;
+
+        if (initial) {
+            boost.position.z = (Math.random() * this.roadLength) - (this.roadLength * 0.4);
+        } else {
+            // Spawn much further ahead to make collecting rare
+            // Was roadLength * 0.8 + 100 which is ~260-360
+            // New: roadLength * 2 + random 300 = ~600-900. 
+            // This creates a large gap between boosts.
+            boost.position.z = this.roadLength * 2 + Math.random() * 300;
+        }
+        boost.visible = true;
+    }
+
+    update(deltaTime, scrollSpeed, enemySpeed, input, scoreCallback, gameOverCallback, boostCallback, isBoosted = false) {
+        const dist = scrollSpeed; // distance to move scenery (already scaled in Game.js)
+
+        // Update Snow
+        if (this.currentMapType === 'snow') {
+            this.updateSnow(deltaTime);
+        } else if (this.currentMapType === 'desert') {
+            this.desertMap.update(deltaTime);
+        }
+
+        // Move Scenery
+        this.moveCollection(this.roadLines, dist, 8);
+        this.moveCollection(this.pedestrians, dist, 0);
+        this.moveCollection(this.skylineBillboards, dist, 0);
+        this.moveCollection(this.footpaths, dist, 0);
+
+        // Update Pedestrians
+        const timeScale = deltaTime / 0.016;
+        this.pedestrians.forEach(p => {
+            p.position.z += (p.userData.dir * p.userData.speed) * timeScale;
+        });
+        this.moveCollection(this.buildings, dist, this.buildingSpacing * 2);
+        // this.moveCollection(this.points, dist, 50); // Points handled separately
+
+        // Move & Rotate Points (Spinning Coins)
+        this.points.forEach(p => {
+            // Always move points, even if collected (invisible), so they can be recycled
+            p.position.z -= dist;
+            if (p.visible) p.rotation.z += 0.1 * timeScale; // Rotate cylinder on its vertical axis
+
+            if (p.position.z < -this.sceneryRecycleDistance) {
+                this.resetPoint(p);
+            }
+        });
+
+        // Move & Rotate Boosts
+        this.boosts.forEach(b => {
+            // Always move boosts, even if collected (invisible)
+            b.position.z -= dist;
+            if (b.visible) {
+                b.rotation.y += 0.1 * timeScale;
+                b.rotation.x += 0.05 * timeScale;
+            }
+
+            if (b.position.z < -this.sceneryRecycleDistance) {
+                this.resetBoost(b);
+            }
+        });
+
+        // Move Enemies
+        this.enemyCars.forEach(enemy => {
+            enemy.position.z -= (dist + enemySpeed); // Enemy speed + scroll
+            if (enemy.position.z < -this.sceneryRecycleDistance) {
+                // Respawn
+                const lanes = [-3, 0, 3];
+                enemy.position.x = lanes[Math.floor(Math.random() * lanes.length)];
+                enemy.position.z = this.roadLength * 0.7 + Math.random() * 50;
+
+                // Distinct Color again!
+                const freshColor = this.getDistinctColor();
+                enemy.traverse((node) => {
+                    if (node.isMesh) {
+                        const newMat = node.material.clone();
+                        // Same heuristic
+                        const isBody = (node.name.toLowerCase().includes('body') ||
+                            (newMat.metalness > 0.4 && newMat.roughness < 0.6));
+                        if (isBody) {
+                            newMat.color.set(freshColor);
+                        }
+                        node.material = newMat;
+                    }
+                });
+            }
+        });
+
+        // Player Movement
+        if (this.carModel) {
+            // Scale movement by delta time (normalized to 60fps)
+            const timeScale = deltaTime / 0.016;
+            let moveSpeed = 0.15 * timeScale;
+
+            // Apply Analog Tilt Smoothing
+            if (input.controlMode === 'tilt') {
+                // Scale speed by tilt intensity (gentle tilt = slow move, hard tilt = fast move)
+                moveSpeed *= (input.tiltFactor !== undefined ? input.tiltFactor : 1);
+            }
+
+            let limit = this.roadWidth / 2 - 1;
+
+            // Stricter limit for Desert map to prevent visual clipping with sand
+            if (this.currentMapType === 'desert') {
+                limit = this.roadWidth / 2 - 1.5;
+            }
+            // +X is Left, -X is Right (per user fix)
+            if (input.moveLeft && this.carModel.position.x < limit) this.carModel.position.x += moveSpeed;
+            if (input.moveRight && this.carModel.position.x > -limit) this.carModel.position.x -= moveSpeed;
+
+            // Skid Effect: Rotate car slightly based on lateral position relative to limit
+            // Normalized position (-1 to 1)
+            const lateralPos = this.carModel.position.x / limit;
+            const skidThreshold = 0.8;
+
+            if (Math.abs(lateralPos) > skidThreshold) {
+                // Skidding!
+                const skidAmount = (Math.abs(lateralPos) - skidThreshold) * 2.0; // 0 to ~0.4
+                // Rotate opposite to movement direction or just amplify the turn?
+                // Visual skidding usually means the car is angled slightly differently than its velocity.
+                // Here we just rotate it to loop 'loose'.
+                // If on left edge (limit), car x is positive. Rotate slightly.
+                const skidAngle = -lateralPos * 0.3 * skidAmount;
+                this.carModel.rotation.y = Math.PI + skidAngle;
+
+                // Maybe add some dust? (handled in update loop if we want, or just stick to visual rotation for now)
+            } else {
+                // Return to normal
+                this.carModel.rotation.y = THREE.MathUtils.lerp(this.carModel.rotation.y, Math.PI, 0.1);
+            }
+
+            this.playerBox.setFromObject(this.carModel);
+        }
+
+        // Collisions
+        this.checkCollisions(scoreCallback, gameOverCallback, boostCallback, isBoosted);
+    }
+
+    moveCollection(items, dist, respawnGap) {
+        items.forEach(item => {
+            item.position.z -= dist;
+            // Total range is from -150 to 450 (600 units)
+            if (item.position.z < -150) {
+                item.position.z += 600;
+            }
+        });
+    }
+
+    updateSnow(deltaTime) {
+        if (!this.snowSystem) return;
+
+        const positions = this.snowSystem.geometry.attributes.position.array;
+        for (let i = 1; i < positions.length; i += 3) {
+            // Y position
+            positions[i] -= deltaTime * 10; // Fall speed
+            if (positions[i] < 0) {
+                positions[i] = 100; // Reset to top
+            }
+        }
+        this.snowSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+
+    setNightFactor(factor) {
+        // Dynamic intensity for normal maps (0 during day, 15 at night)
+        let headlightIntensity = factor * 15;
+        let windowIntensity = 0.2 + factor * 2.5;
+
+        // Force headlights ALWAYS ON for cybercity map
+        if (this.currentMapType === 'cybercity') {
+            headlightIntensity = 15; // Max brightness constantly
+            windowIntensity = 3.0;
+        }
+
+        // Player Headlights
+        if (this.carModel && this.carModel.userData.headlights) {
+            this.carModel.userData.headlights.forEach(hl => {
+                hl.intensity = headlightIntensity;
+                // No bulb mesh to update
+            });
+        }
+
+        // Enemy Headlights
+        this.enemyCars.forEach(car => {
+            if (car.userData.headlights) {
+                car.userData.headlights.forEach(hl => hl.intensity = headlightIntensity);
+            }
+        });
+
+        // Building Windows
+        this.buildings.forEach(b => {
+            b.traverse(node => {
+                if (node.isMesh && node.material.emissive) {
+                    node.material.emissiveIntensity = windowIntensity;
+                }
+            });
+        });
+    }
+
+    checkCollisions(scoreCallback, gameOverCallback, boostCallback, isBoosted = false) {
+        if (!this.carModel) return;
+
+        this.playerBox.setFromObject(this.carModel);
+        // Need to shrink the box slightly for better feel (so we don't crash on edges)
+        this.playerBox.expandByScalar(-0.3);
+
+        // Points
+        this.points.forEach(p => {
+            if (!p.visible) return;
+            this.pointBox.setFromObject(p);
+            if (this.playerBox.intersectsBox(this.pointBox)) {
+                p.visible = false;
+                scoreCallback(1);
+            }
+        });
+
+        // Boosts
+        this.boosts.forEach(b => {
+            if (!b.visible) return;
+            this.boostBox.setFromObject(b);
+            if (this.playerBox.intersectsBox(this.boostBox)) {
+                b.visible = false; // Consume boost
+                if (boostCallback) boostCallback();
+            }
+        });
+
+        // Enemies
+        this.enemyCars.forEach(e => {
+            this.enemyBox.setFromObject(e);
+            const pBox = this.playerBox.clone().expandByScalar(-0.2); // Be slightly forgiving
+            if (pBox.intersectsBox(this.enemyBox)) {
+                // If boosted, we are INVINCIBLE! Pass through.
+                if (!isBoosted) {
+                    gameOverCallback();
+                }
+            }
+        });
+    }
+
+    reset() {
+        this.carModel.position.set(0, this.carBaseY, 0);
+        this.points.forEach(p => this.resetPoint(p, true));
+
+        // Reset Enemies
+        this.enemyCars.forEach(e => {
+            const lanes = [-3, 0, 3];
+            e.position.x = lanes[Math.floor(Math.random() * lanes.length)];
+            e.position.z = this.roadLength * 0.7;
+        });
+    }
+}

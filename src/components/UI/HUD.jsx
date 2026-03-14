@@ -440,6 +440,7 @@ export default function HUD() {
   const timeFrac   = raceTimeLimit > 0 ? Math.max(0, Math.min(1, timeLeft / raceTimeLimit)) : 1
   const isUrgent   = timeLeft < 15 && timeLeft > 0
   const isCritical = timeLeft < 8  && timeLeft > 0
+  const countdownColor = countdown === 1 ? '#00e676' : '#ff3d3d'
 
   useEffect(() => {
     const onKey = (e) => {
@@ -451,6 +452,22 @@ export default function HUD() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', fontFamily: "'Orbitron', sans-serif" }}>
+      <style>{`
+        @keyframes countPulse {
+          0% { opacity: 0; transform: scale(0.8); }
+          35% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0.1; transform: scale(1.12); }
+        }
+        @keyframes countRing {
+          0% { opacity: 0.65; transform: scale(0.6); }
+          100% { opacity: 0; transform: scale(1.35); }
+        }
+        @keyframes goPulse {
+          0% { opacity: 0; transform: scale(0.88); }
+          30% { opacity: 1; transform: scale(1.05); }
+          100% { opacity: 0; transform: scale(1.18); }
+        }
+      `}</style>
 
       {/* â”€â”€ Timer bar (top edge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {raceStarted && !raceFinished && (
@@ -482,21 +499,21 @@ export default function HUD() {
 
       {/* â”€â”€ Countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {countdown > 0 && (
-        <div style={centerMsg}>
+        <div key={`count-${countdown}`} style={countdownWrap}>
+          <div style={{ ...countdownRing, borderColor: `${countdownColor}66`, boxShadow: `0 0 24px ${countdownColor}33` }} />
           <span style={{
-            fontSize: '9rem',
-            color: countdown === 1 ? '#00e676' : '#ff3d3d',
-            textShadow: `0 0 60px ${countdown === 1 ? '#00e676' : '#ff3d3d'}`,
-            fontWeight: 900,
-            lineHeight: 1,
+            ...countdownText,
+            color: countdownColor,
+            textShadow: `0 0 16px ${countdownColor}99`,
           }}>{countdown}</span>
+          <span style={countdownSub}>READY</span>
         </div>
       )}
 
       {/* â”€â”€ GO! â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {countdown === 0 && raceStarted && raceTime < 1.2 && (
-        <div style={centerMsg}>
-          <span style={{ fontSize: '5.5rem', color: '#00e676', textShadow: '0 0 50px #00e676', fontWeight: 900 }}>GO!</span>
+        <div key="count-go" style={goWrap}>
+          <span style={goText}>GO!</span>
         </div>
       )}
 
@@ -524,7 +541,7 @@ export default function HUD() {
           {/* â”€â”€ Camera hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {raceTime < 6 && (
             <div style={controlsHint}>
-              WASD / Arrows &nbsp;Â·&nbsp; Space = Brake &nbsp;Â·&nbsp; C = Camera
+              WASD / Arrows | Space = Brake | ESC = Pause
             </div>
           )}
         </>
@@ -532,7 +549,15 @@ export default function HUD() {
 
       {/* â”€â”€ Pause button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {raceStarted && !raceFinished && (
-        <button onClick={togglePause} style={pauseBtn}>{paused ? 'â–¶' : 'âšâš'}</button>
+        <button
+          onClick={togglePause}
+          style={paused ? { ...pauseBtn, borderColor: 'rgba(0,230,118,0.75)', boxShadow: '0 0 22px rgba(0,230,118,0.26)' } : pauseBtn}
+          title={paused ? 'Resume race (ESC)' : 'Pause race (ESC)'}
+          aria-label={paused ? 'Resume race' : 'Pause race'}
+        >
+          <span style={pauseBtnText}>{paused ? 'RESUME' : 'PAUSE'}</span>
+          <span style={pauseBtnKey}>ESC</span>
+        </button>
       )}
 
       {/* â”€â”€ Pause overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
@@ -556,6 +581,60 @@ export default function HUD() {
       )}
     </div>
   )
+}
+
+const countdownWrap = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexDirection: 'column',
+  gap: '0.45rem',
+  pointerEvents: 'none',
+  animation: 'countPulse 940ms cubic-bezier(0.2, 0.7, 0.15, 1) forwards',
+}
+
+const countdownRing = {
+  position: 'absolute',
+  width: '176px',
+  height: '176px',
+  borderRadius: '50%',
+  border: '2px solid',
+  animation: 'countRing 940ms ease-out forwards',
+}
+
+const countdownText = {
+  fontSize: '8rem',
+  fontWeight: 900,
+  lineHeight: 0.9,
+  letterSpacing: '0.02em',
+}
+
+const countdownSub = {
+  marginTop: '0.2rem',
+  fontSize: '0.75rem',
+  color: 'rgba(255,255,255,0.55)',
+  letterSpacing: '0.35em',
+}
+
+const goWrap = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  pointerEvents: 'none',
+  animation: 'goPulse 760ms cubic-bezier(0.2, 0.7, 0.15, 1) forwards',
+}
+
+const goText = {
+  fontSize: '5.2rem',
+  color: '#00e676',
+  textShadow: '0 0 16px rgba(0,230,118,0.65)',
+  fontWeight: 900,
+  lineHeight: 1,
+  letterSpacing: '0.03em',
 }
 
 /* â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -603,21 +682,38 @@ const pauseBtn = {
   position: 'absolute',
   top: '1.5rem',
   left: '1.5rem',
-  width: '44px',
   height: '44px',
-  borderRadius: '50%',
-  background: 'rgba(0,0,0,0.55)',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, rgba(16,26,38,0.95), rgba(8,13,22,0.95))',
   backdropFilter: 'blur(8px)',
-  border: '2px solid rgba(255,255,255,0.2)',
+  border: '1px solid rgba(0,180,255,0.55)',
   color: '#fff',
-  fontSize: '1.1rem',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  gap: '0.55rem',
+  padding: '0 0.7rem 0 1rem',
   pointerEvents: 'auto',
   zIndex: 10,
-  fontFamily: 'sans-serif',
+  fontFamily: "'Orbitron', sans-serif",
+  letterSpacing: '0.1em',
+  boxShadow: '0 0 20px rgba(0,180,255,0.16)',
+}
+const pauseBtnText = {
+  fontSize: '0.68rem',
+  fontWeight: 800,
+  lineHeight: 1,
+}
+const pauseBtnKey = {
+  fontSize: '0.56rem',
+  fontWeight: 800,
+  lineHeight: 1,
+  padding: '0.2rem 0.35rem',
+  borderRadius: '4px',
+  border: '1px solid rgba(255,255,255,0.26)',
+  color: 'rgba(255,255,255,0.78)',
+  background: 'rgba(255,255,255,0.08)',
 }
 const pauseOverlay = {
   position: 'absolute',

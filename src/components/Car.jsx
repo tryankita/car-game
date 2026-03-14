@@ -9,6 +9,7 @@ import { nightFactorRef } from './Lighting'
 import { playerProgress, resetProgress } from '../raceProgress'
 
 const pressedKeys = {}
+const SPEED_FEEL_MULT = 1.75
 
 /* ── GLB Car Model ─────────────────────────────────────────── */
 function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY }) {
@@ -222,6 +223,142 @@ function TireSmoke({ carRef, lateralVelRef, raceStarted }) {
   )
 }
 
+/* ── Speed lines — peripheral streaks at high velocity ──────── */
+const MAX_LINES = 60
+const _lineV3   = new THREE.Vector3()
+
+function SpeedLines({ carRef, velocityRef }) {
+  const geo   = useRef(new THREE.BufferGeometry())
+  const posA  = useRef(new Float32Array(MAX_LINES * 6))  // 2 verts × 3 coords per line
+  const lines = useRef([])
+
+  useEffect(() => {
+    geo.current.setAttribute('position',
+      new THREE.BufferAttribute(posA.current, 3))
+    geo.current.setDrawRange(0, 0)
+  }, [])
+
+  useFrame((state, dt) => {
+    if (!carRef.current) return
+    const speed = Math.abs(velocityRef.current)
+    const ratio = speed / 50                         // approximate normalisation
+
+    // Only show at >40 % speed
+    if (ratio > 0.4 && lines.current.length < MAX_LINES) {
+      const car = carRef.current
+      const cam = state.camera
+      // Spawn a few lines around camera periphery each frame
+      const spawnCount = Math.min(Math.ceil((ratio - 0.4) * 8), 4)
+      for (let k = 0; k < spawnCount && lines.current.length < MAX_LINES; k++) {
+        // Random angle around view direction
+        const angle = Math.random() * Math.PI * 2
+        const radius = 6 + Math.random() * 10
+        const offX = Math.cos(angle) * radius
+        const offY = Math.sin(angle) * radius * 0.4 + 2
+
+        _lineV3.set(offX, offY, 8 + Math.random() * 6)
+        _lineV3.applyQuaternion(cam.quaternion)
+        _lineV3.add(car.position)
+
+        lines.current.push({
+          x: _lineV3.x, y: _lineV3.y, z: _lineV3.z,
+          vx: 0, vy: 0, vz: 0,
+          life: 1,
+          duration: 0.15 + Math.random() * 0.15,
+          length: 1.5 + Math.random() * 2.5,
+        })
+      }
+    }
+
+    const pos   = posA.current
+    const alive = []
+    let idx = 0
+    const fwd = carRef.current
+      ? new THREE.Vector3(0, 0, 1).applyQuaternion(carRef.current.quaternion)
+      : new THREE.Vector3(0, 0, 1)
+
+    for (const p of lines.current) {
+      p.life -= dt / p.duration
+      if (p.life <= 0) continue
+      // Move streaks backward relative to the car
+      p.x -= fwd.x * speed * dt * 1.4
+      p.y -= fwd.y * speed * dt * 1.4
+      p.z -= fwd.z * speed * dt * 1.4
+
+      const stretch = p.length * p.life
+      pos[idx * 6]     = p.x
+      pos[idx * 6 + 1] = p.y
+      pos[idx * 6 + 2] = p.z
+      pos[idx * 6 + 3] = p.x + fwd.x * stretch
+      pos[idx * 6 + 4] = p.y + fwd.y * stretch
+      pos[idx * 6 + 5] = p.z + fwd.z * stretch
+      idx++
+      alive.push(p)
+    }
+    lines.current = alive
+
+    if (geo.current.attributes.position) {
+      geo.current.attributes.position.needsUpdate = true
+      geo.current.setDrawRange(0, idx * 2)
+    }
+  })
+
+  return (
+    <lineSegments>
+      <primitive object={geo.current} attach="geometry" />
+      <lineBasicMaterial color="#ffffff" transparent opacity={0.18} depthWrite={false} />
+    </lineSegments>
+  )
+}
+
+/* ── Skid marks on the road ─────────────────────────────────── */
+const MAX_SKIDS = 500
+const _skidObj  = new THREE.Object3D()
+const _skidPosL = new THREE.Vector3()
+const _skidPosR = new THREE.Vector3()
+
+function SkidMarks({ carRef, lateralVelRef, raceStarted }) {
+  const meshRef = useRef()
+  const nextIdx = useRef(0)
+
+  useEffect(() => {
+    if (!meshRef.current) return
+    _skidObj.position.set(0, -100, 0)
+    _skidObj.updateMatrix()
+    for (let i = 0; i < MAX_SKIDS; i++) {
+      meshRef.current.setMatrixAt(i, _skidObj.matrix)
+    }
+    meshRef.current.instanceMatrix.needsUpdate = true
+  }, [])
+
+  useFrame(() => {
+    if (!raceStarted || !carRef.current || !meshRef.current) return
+    const slip = Math.abs(lateralVelRef.current)
+    if (slip > 4.0) {
+      const car = carRef.current
+      _skidPosL.set(-0.85, 0, -1.5).applyMatrix4(car.matrixWorld)
+      _skidPosR.set( 0.85, 0, -1.5).applyMatrix4(car.matrixWorld)
+
+      for (const pos of [_skidPosL, _skidPosR]) {
+        const idx = nextIdx.current % MAX_SKIDS
+        _skidObj.position.set(pos.x, 0.03, pos.z)
+        _skidObj.rotation.set(-Math.PI / 2, car.rotation.y, 0)
+        _skidObj.updateMatrix()
+        meshRef.current.setMatrixAt(idx, _skidObj.matrix)
+        nextIdx.current++
+      }
+      meshRef.current.instanceMatrix.needsUpdate = true
+    }
+  })
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, MAX_SKIDS]} frustumCulled={false}>
+      <planeGeometry args={[0.25, 0.55]} />
+      <meshBasicMaterial color="#1a1a1a" transparent opacity={0.45} depthWrite={false} side={THREE.DoubleSide} />
+    </instancedMesh>
+  )
+}
+
 /* ── Main Car component ────────────────────────────────────── */
 export default function Car() {
   const carRef = useRef()
@@ -234,6 +371,11 @@ export default function Car() {
   const lateralVel   = useRef(0)          // sideways drift velocity
   const fovRef       = useRef(62)
   const prevGearRef  = useRef('N')        // for gear-shift SFX
+  const bodyPitch    = useRef(0)           // nose tilt on accel/brake
+  const bodyRoll     = useRef(0)           // lean on steering
+  const camShake     = useRef(0)           // camera vibration timer
+  const bodyGroupRef = useRef()            // inner group for pitch/roll
+  const lastFrameIdx = useRef(-1)          // track segment hint for collision
 
   const selectedCar = useGameStore((s) => s.selectedCar)
   const selectedLevel = useGameStore((s) => s.selectedLevel)
@@ -293,7 +435,7 @@ export default function Car() {
     const dt = Math.min(delta, 0.05)
 
     const { topSpeed, handling, acceleration: accel } = carConfig
-    const speedRatio = Math.abs(velocity.current) / topSpeed
+    const speedRatio = Math.min(1, (Math.abs(velocity.current) * SPEED_FEEL_MULT) / topSpeed)
 
     // ── Direction vectors ──────────────────────────────────────
     const fwdVec   = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion)
@@ -304,11 +446,13 @@ export default function Car() {
       // Chase camera — smooth follow from behind and above
       const chaseOff = new THREE.Vector3(0, 7, -18)
       chaseOff.applyQuaternion(car.quaternion)
-      camera.position.lerp(car.position.clone().add(chaseOff), 6 * dt)
+      const targetPos = car.position.clone().add(chaseOff)
+
+      camera.position.lerp(targetPos, 4 * dt)
       camera.lookAt(car.position.x, car.position.y + 1.5, car.position.z)
 
-      // FOV expansion at high speed (62 → 72)
-      const targetFov = THREE.MathUtils.lerp(62, 72, speedRatio * speedRatio)
+      // Stronger speed impression at high velocity
+      const targetFov = THREE.MathUtils.lerp(62, 80, speedRatio * speedRatio)
       fovRef.current = THREE.MathUtils.lerp(fovRef.current, targetFov, 3 * dt)
       if (Math.abs(camera.fov - fovRef.current) > 0.3) {
         camera.fov = fovRef.current
@@ -366,31 +510,56 @@ export default function Car() {
     lateralVel.current = THREE.MathUtils.clamp(lateralVel.current, -6, 6)
 
     // ── Movement (forward + lateral drift component) ───────────
-    car.position.addScaledVector(fwdVec, velocity.current * dt)
+    // Save pre-move position for rollback if we overshoot a barrier
+    const prevPosX = car.position.x
+    const prevPosZ = car.position.z
+
+    car.position.addScaledVector(fwdVec, velocity.current * dt * SPEED_FEEL_MULT)
     car.position.addScaledVector(rightVec, lateralVel.current * dt)
     car.position.y = 0.5
 
-    // ── Barrier collision (slide along walls) ─────────────────
-    const info = nearestTrackInfo(car.position.x, car.position.z)
+    // ── Barrier collision ─────────────────────────────────────
+    // Use local search around last known track segment to avoid snapping
+    // to the wrong part of the track on tight curves.
+    const hint = lastFrameIdx.current >= 0 ? lastFrameIdx.current : undefined
+    const info = nearestTrackInfo(car.position.x, car.position.z, hint)
+    lastFrameIdx.current = info.frameIdx
+
     const absDist = Math.abs(info.signedDist)
-    const maxDist = WALL_D - 1.4
+    const maxDist = WALL_D - 1.5
 
     if (absDist > maxDist) {
       const sign = info.signedDist > 0 ? 1 : -1
-      const push = absDist - maxDist + 0.05
-      car.position.x -= info.nx * push * sign
-      car.position.z -= info.nz * push * sign
+      const penetration = absDist - maxDist
 
-      // Damp forward velocity going into wall
-      const wallNx = info.nx * sign
-      const wallNz = info.nz * sign
-      const dotIntoWall = fwdVec.x * wallNx + fwdVec.z * wallNz
-      if ((dotIntoWall > 0 && velocity.current > 0) ||
-          (dotIntoWall < 0 && velocity.current < 0)) {
-        velocity.current *= Math.max(1 - Math.abs(dotIntoWall) * 0.85, 0.08)
+      // Clamp push-back to a reasonable max per frame to avoid jitter
+      const pushAmt = Math.min(penetration + 0.12, 2.0)
+      car.position.x -= info.nx * pushAmt * sign
+      car.position.z -= info.nz * pushAmt * sign
+
+      // How head-on is the hit (0 = parallel, 1 = perpendicular)
+      const wnx = info.nx * sign
+      const wnz = info.nz * sign
+      const fwdDotN = fwdVec.x * wnx + fwdVec.z * wnz
+      const hitAngle = Math.abs(fwdDotN)
+
+      // Velocity damping: glancing = keep most speed, head-on = big loss
+      if (hitAngle > 0.05) {
+        const damping = THREE.MathUtils.lerp(0.95, 0.4, hitAngle)
+        velocity.current *= damping
       }
-      // Kill lateral drift into wall
+
+      // Damp lateral velocity toward wall
       lateralVel.current *= 0.2
+
+      // If still outside after correction, hard rollback
+      const recheck = nearestTrackInfo(car.position.x, car.position.z, info.frameIdx)
+      if (Math.abs(recheck.signedDist) > WALL_D - 0.8) {
+        car.position.x = prevPosX
+        car.position.z = prevPosZ
+        velocity.current *= 0.6
+        lateralVel.current = 0
+      }
     }
 
     // ── Store updates ─────────────────────────────────────────
@@ -417,7 +586,7 @@ export default function Car() {
     }
 
     // ── Player race progress (for leaderboard) ────────────────
-    playerProgress.t   = info.frameIdx / SAMPLES
+    playerProgress.t   = lastFrameIdx.current / SAMPLES
     playerProgress.lap = useGameStore.getState().currentLap
 
     // ── Lap detection ─────────────────────────────────────────
@@ -440,15 +609,42 @@ export default function Car() {
       }
     }
     prevZ.current = z
+
+    // ── Body pitch & roll animation ─────────────────────────
+    const accelInput = isFwd ? 1 : isBrake ? -1 : isBack ? -0.6 : 0
+    const pitchTarget = -accelInput * 0.035 * Math.min(speedRatio + 0.3, 1)
+    bodyPitch.current = THREE.MathUtils.lerp(bodyPitch.current, pitchTarget, 6 * dt)
+
+    const steerInput = isLeft ? 1 : isRight ? -1 : 0
+    const rollTarget = steerInput * 0.04 * Math.min(speedRatio * 1.5, 1)
+    bodyRoll.current = THREE.MathUtils.lerp(bodyRoll.current, rollTarget, 5 * dt)
+
+    if (bodyGroupRef.current) {
+      bodyGroupRef.current.rotation.x = bodyPitch.current
+      bodyGroupRef.current.rotation.z = bodyRoll.current
+    }
   })
 
   return (
     <>
       <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
-        <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
-        <CarLights velocityRef={velocity} />
+        <group ref={bodyGroupRef}>
+          <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
+          <CarLights velocityRef={velocity} />
+        </group>
       </group>
       <TireSmoke carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />
+      <SkidMarks carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />
+      <SpeedLines carRef={carRef} velocityRef={velocity} />
     </>
   )
 }
+
+
+/*
+
+ghhg ghgv hgvh gv jkbkjblkj
+ iug uigiugiogiugoiug iugugiu uig iou giuguiogiu oiug oiug oiuiuiu iugoiugiu iu iu giou iu iu iuogiug oiu iu iu oiug oiu ouig uig u iu uigio uig iug iu
+*/
+
+

@@ -318,21 +318,30 @@ function transformTrack(base, scale, angleDeg, mirrorX, mirrorZ) {
   }
 }
 
-const TRANSFORMS = [
-  { scale: 1.1,  angle: 0,   mX: true,  mZ: false }, // 11-20
-  { scale: 1.15, angle: 90,  mX: false, mZ: false },  // 21-30
-  { scale: 1.2,  angle: 0,   mX: false, mZ: true },   // 31-40
-  { scale: 1.3,  angle: 45,  mX: false, mZ: false },  // 41-50
-]
+const STRAIGHT_TRACK_TEMPLATE = {
+  cp: [
+    [70, -520], [70, 0], [70, 520],
+    [-70, 520], [-70, 0], [-70, -520],
+  ],
+  spawn: [70, -20],
+  sfX: 70,
+  sfRange: 15,
+  sfLeaveZ: 120,
+}
 
-export const LEVEL_TRACKS = [...OVAL_TRACKS]
-
-for (let batch = 0; batch < 4; batch++) {
-  const t = TRANSFORMS[batch]
-  for (let i = 0; i < 10; i++) {
-    LEVEL_TRACKS.push(transformTrack(BASE_TRACKS[i], t.scale, t.angle, t.mX, t.mZ))
+function makeStraightTrack() {
+  const cp = STRAIGHT_TRACK_TEMPLATE.cp.map(([x, z]) => [x, z])
+  const spawn = [STRAIGHT_TRACK_TEMPLATE.spawn[0], STRAIGHT_TRACK_TEMPLATE.spawn[1]]
+  return {
+    cp,
+    spawn,
+    sfX: spawn[0],
+    sfRange: STRAIGHT_TRACK_TEMPLATE.sfRange,
+    sfLeaveZ: STRAIGHT_TRACK_TEMPLATE.sfLeaveZ,
   }
 }
+
+export const LEVEL_TRACKS = Array.from({ length: 50 }, () => makeStraightTrack())
 
 // ── Track dimension constants (same for all levels) ─────────
 export const ROAD_W  = 22
@@ -392,15 +401,32 @@ export function getFrames() { if (!_frames) _frames = sampleFrames(getCurve(), S
    nearestTrackInfo(x, z)
    Returns { dist, signedDist, frameIdx, px, pz, nx, nz }
    ═══════════════════════════════════════════════════════════════ */
-export function nearestTrackInfo(x, z) {
+export function nearestTrackInfo(x, z, hintIdx) {
   const frames = getFrames()
   let best = 0, bestD2 = Infinity
-  for (let i = 0; i < frames.length; i++) {
-    const dx = x - frames[i].p.x
-    const dz = z - frames[i].p.z
-    const d2 = dx * dx + dz * dz
-    if (d2 < bestD2) { bestD2 = d2; best = i }
+
+  if (hintIdx !== undefined && hintIdx >= 0) {
+    // Local search: check ±40 frames around hint (handles curves well)
+    const range = 40
+    const start = hintIdx - range
+    const end   = hintIdx + range
+    for (let i = start; i <= end; i++) {
+      const fi = ((i % frames.length) + frames.length) % frames.length
+      const dx = x - frames[fi].p.x
+      const dz = z - frames[fi].p.z
+      const d2 = dx * dx + dz * dz
+      if (d2 < bestD2) { bestD2 = d2; best = fi }
+    }
+  } else {
+    // Global search (first call or no hint)
+    for (let i = 0; i < frames.length; i++) {
+      const dx = x - frames[i].p.x
+      const dz = z - frames[i].p.z
+      const d2 = dx * dx + dz * dz
+      if (d2 < bestD2) { bestD2 = d2; best = i }
+    }
   }
+
   const f = frames[best]
   const dx = x - f.p.x
   const dz = z - f.p.z

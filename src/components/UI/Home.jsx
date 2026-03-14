@@ -8,285 +8,216 @@ const HomeBg3D = lazy(() => import('./HomeBg3D'))
 export default function Home() {
   const setScreen = useGameStore((s) => s.setScreen)
   const setShowSettings = useGameStore((s) => s.setShowSettings)
-  const [hoverStart, setHoverStart] = useState(false)
-  const [hoverGarage, setHoverGarage] = useState(false)
-  const [hoverSettings, setHoverSettings] = useState(false)
+  const [hover, setHover] = useState(null)
 
-  // Try to play music when component mounts
   useEffect(() => {
     audioManager.enableAudio()
     audioManager.playMenuMusic()
   }, [])
 
-  const handleStartRace = () => {
+  const go = (screen) => {
     audioManager.enableAudio()
-    setScreen('levels')
+    setScreen(screen)
   }
 
-  const handleGarage = () => {
-    audioManager.enableAudio()
-    audioManager.playMenuMusic()
-    setScreen('garage')
-  }
-
-  const handleSettings = () => {
-    audioManager.enableAudio()
-    setShowSettings(true)
-  }
+  const btn = (id, label, color, onClick) => (
+    <button
+      style={{ ...modeBtn, borderColor: hover === id ? color : 'rgba(255,255,255,0.12)',
+        boxShadow: hover === id ? `0 0 18px ${color}88, inset 0 0 10px ${color}22` : 'none',
+        color: hover === id ? '#fff' : 'rgba(255,255,255,0.82)',
+        textShadow: hover === id ? `0 0 10px ${color}` : 'none',
+        transform: hover === id ? 'translateY(-2px)' : 'none',
+      }}
+      onMouseEnter={() => setHover(id)}
+      onMouseLeave={() => setHover(null)}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div style={containerStyle}>
-      {/* 3D animated racing background */}
-      <Suspense fallback={null}>
-        <HomeBg3D />
-      </Suspense>
-
-      {/* Dark overlay for legibility */}
+      <Suspense fallback={null}><HomeBg3D /></Suspense>
       <div style={darkOverlay} />
       <div style={gridOverlay} />
 
-      {/* Content */}
       <div style={contentWrapper}>
-        {/* Top decorative line */}
-        <div style={topLineStyle} />
-
-        {/* Logo/Title Section */}
-        <div style={logoSection}>
+        {/* Title */}
+        <div style={titleSection}>
           <h1 style={titleStyle}>
-            <span style={glitchText}>CAR</span>
+            <span style={titleWhite}>CAR</span>
             {' '}
-            <span style={{ ...glitchText, 
-              background: 'linear-gradient(90deg, #00b4ff 0%, #ff3250 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>RACING</span>
+            <span style={titleGrad}>RACING</span>
           </h1>
+          <div style={titleDivider} />
+          <span style={titleSub}>SELECT MODE</span>
         </div>
 
-        {/* Main Action Buttons */}
-        <div style={cardsContainer}>
-          <button
-            style={{
-              ...neonButton,
-              ...(hoverStart ? neonButtonHover('#00b4ff') : {}),
-            }}
-            onClick={handleStartRace}
-            onMouseEnter={() => setHoverStart(true)}
-            onMouseLeave={() => setHoverStart(false)}
-          >
-            START GAME
-          </button>
+        {/* Two mode panels */}
+        <div style={modesRow}>
 
-          <button
-            style={{
-              ...neonButton,
-              ...(hoverGarage ? neonButtonHover('#888') : {}),
-            }}
-            onClick={handleGarage}
-            onMouseEnter={() => setHoverGarage(true)}
-            onMouseLeave={() => setHoverGarage(false)}
-          >
-            GARAGE
-          </button>
-
-          <button
-            style={{
-              ...neonButton,
-              ...(hoverSettings ? neonButtonHover('#888') : {}),
-            }}
-            onClick={handleSettings}
-            onMouseEnter={() => setHoverSettings(true)}
-            onMouseLeave={() => setHoverSettings(false)}
-          >
-            SETTINGS
-          </button>
-        </div>
-
-        {/* Bottom Info */}
-        <div style={bottomInfo}>
-          <div style={controlHint}>
-            <span style={hintKey}>WASD</span> / <span style={hintKey}>ARROWS</span> to drive
+          {/* ── TRACK RACE ── */}
+          <div style={{ ...modeCard, borderColor: hover && hover.startsWith('tr') ? '#00b4ff44' : 'rgba(0,180,255,0.18)' }}>
+            <div style={modeHeader}>
+              <div style={{ ...modeIcon, background: 'linear-gradient(135deg,#003a55,#005f8a)' }}>🏁</div>
+              <h2 style={{ ...modeName, color: '#00b4ff' }}>TRACK RACE</h2>
+              <p style={modeDesc}>Circuit racing on defined tracks.<br/>Compete against AI opponents.</p>
+            </div>
+            <div style={modeDivider} />
+            <div style={modeBtns}>
+              {btn('tr-start', 'START GAME', '#00b4ff', () => go('levels'))}
+              {btn('tr-garage', 'GARAGE', '#00b4ff', () => go('garage'))}
+              {btn('tr-settings', 'SETTINGS', '#00b4ff', () => { audioManager.enableAudio(); setShowSettings(true) })}
+            </div>
           </div>
-          <div style={controlHint}>
-            <span style={hintKey}>SPACE</span> to brake
+
+          {/* vertical separator */}
+          <div style={vertDivider} />
+
+          {/* ── ARCADE MODE ── */}
+          <div style={{ ...modeCard, borderColor: hover && hover.startsWith('ac') ? '#facc1544' : 'rgba(250,204,21,0.18)' }}>
+            <div style={modeHeader}>
+              <div style={{ ...modeIcon, background: 'linear-gradient(135deg,#3b2800,#7a5400)' }}>🕹</div>
+              <h2 style={{ ...modeName, color: '#facc15' }}>ARCADE MODE</h2>
+              <p style={modeDesc}>Dodge traffic &amp; collect coins.<br/>4 maps · nitro boost · high score.</p>
+            </div>
+            <div style={modeDivider} />
+            <div style={modeBtns}>
+              {btn('ac-start', 'START GAME', '#facc15', () => go('arcade'))}
+            </div>
           </div>
+
         </div>
       </div>
 
-      {/* Settings Overlay */}
       <SettingsOverlay />
     </div>
   )
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STYLES
-   ══════════════════════════════════════════════════════════════ */
+/* ── Styles ── */
 
 const containerStyle = {
-  position: 'relative',
-  width: '100vw',
-  height: '100vh',
-  overflow: 'hidden',
-  background: '#050510',
+  position: 'relative', width: '100vw', height: '100vh',
+  overflow: 'hidden', background: '#050510',
   fontFamily: "'Orbitron', sans-serif",
 }
 
-const bgLayer1 = { display: 'none' }
-
-const bgLayer2 = { display: 'none' }
-
 const darkOverlay = {
-  position: 'absolute',
-  inset: 0,
-  zIndex: 1,
+  position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
   background: `
-    radial-gradient(ellipse 120% 70% at 50% 40%, transparent 30%, rgba(20, 5, 10, 0.65) 100%),
-    linear-gradient(to bottom, rgba(15, 5, 10, 0.1) 0%, rgba(15, 5, 10, 0.45) 60%, rgba(10, 2, 8, 0.8) 100%)
+    radial-gradient(ellipse 120% 70% at 50% 40%, transparent 30%, rgba(20,5,10,0.65) 100%),
+    linear-gradient(to bottom, rgba(15,5,10,0.1) 0%, rgba(15,5,10,0.45) 60%, rgba(10,2,8,0.8) 100%)
   `,
-  pointerEvents: 'none',
 }
 
 const gridOverlay = {
-  position: 'absolute',
-  inset: 0,
-  zIndex: 1,
+  position: 'absolute', inset: 0, zIndex: 1, opacity: 0.4, pointerEvents: 'none',
   backgroundImage: `
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 180, 255, 0.03) 2px, rgba(0, 180, 255, 0.03) 3px),
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255, 50, 80, 0.03) 2px, rgba(255, 50, 80, 0.03) 3px)
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,180,255,0.03) 2px, rgba(0,180,255,0.03) 3px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,50,80,0.03) 2px, rgba(255,50,80,0.03) 3px)
   `,
   backgroundSize: '60px 60px',
-  opacity: 0.4,
 }
 
 const contentWrapper = {
-  position: 'relative',
-  zIndex: 2,
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '2rem',
-  gap: '3rem',
+  position: 'relative', zIndex: 2, height: '100%',
+  display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center',
+  padding: '2rem', gap: '2.5rem',
 }
 
-const topLineStyle = {
-  position: 'absolute',
-  top: '0',
-  left: '0',
-  right: '0',
-  height: '0px',
-  display: 'none',
-}
-
-const logoSection = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '0rem',
-  marginBottom: '3rem',
+const titleSection = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
 }
 
 const titleStyle = {
-  fontSize: '6rem',
-  fontWeight: 900,
-  textAlign: 'center',
-  lineHeight: 1,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  margin: 0,
-  fontFamily: "'Orbitron', sans-serif",
-  fontStyle: 'italic',
+  fontSize: 'clamp(3rem, 7vw, 5.5rem)', fontWeight: 900, textAlign: 'center',
+  lineHeight: 1, letterSpacing: '0.08em', textTransform: 'uppercase',
+  margin: 0, fontFamily: "'Orbitron', sans-serif", fontStyle: 'italic',
 }
 
-const glitchText = {
+const titleWhite = {
   color: '#ffffff',
-  textShadow: `
-    0 0 20px rgba(0, 180, 255, 0.8),
-    0 0 40px rgba(0, 180, 255, 0.6),
-    0 0 60px rgba(0, 180, 255, 0.4),
-    2px 2px 4px rgba(0, 0, 0, 0.8)
-  `,
-  filter: 'drop-shadow(0 4px 20px rgba(255, 50, 80, 0.4))',
+  textShadow: '0 0 20px rgba(0,180,255,0.8), 0 0 40px rgba(0,180,255,0.4)',
+  filter: 'drop-shadow(0 4px 20px rgba(255,50,80,0.4))',
 }
 
-const subtitleBadge = {
-  display: 'none',
+const titleGrad = {
+  background: 'linear-gradient(90deg,#00b4ff 0%,#ff3250 100%)',
+  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+  filter: 'drop-shadow(0 4px 20px rgba(0,180,255,0.5))',
 }
 
-const badgeLine = {
-  display: 'none',
+const titleDivider = {
+  width: '120px', height: '2px', marginTop: '0.4rem',
+  background: 'linear-gradient(90deg, transparent, #00b4ff, #ff3250, transparent)',
 }
 
-const subtitleText = {
-  display: 'none',
+const titleSub = {
+  fontSize: '0.72rem', letterSpacing: '0.45em', color: 'rgba(255,255,255,0.45)',
+  textTransform: 'uppercase', marginTop: '0.2rem',
 }
 
-const cardsContainer = {
-  display: 'flex',
-  gap: '2rem',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-  maxWidth: '1000px',
+const modesRow = {
+  display: 'flex', flexDirection: 'row', alignItems: 'stretch',
+  gap: '0', flexWrap: 'wrap', justifyContent: 'center',
+  maxWidth: '900px', width: '100%',
 }
 
-const neonButton = {
-  position: 'relative',
-  minWidth: '200px',
-  padding: '1.2rem 3rem',
-  fontSize: '1.1rem',
-  fontWeight: 700,
+const modeCard = {
+  flex: '1 1 280px', maxWidth: '380px', minWidth: '240px',
+  display: 'flex', flexDirection: 'column', gap: '1.2rem',
+  padding: '2rem 2.4rem',
+  background: 'rgba(8,12,22,0.72)', backdropFilter: 'blur(14px)',
+  border: '1px solid', borderRadius: '16px',
+  transition: 'border-color 0.3s',
+}
+
+const modeHeader = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', textAlign: 'center',
+}
+
+const modeIcon = {
+  width: '56px', height: '56px', borderRadius: '12px',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  fontSize: '1.8rem',
+}
+
+const modeName = {
+  margin: 0, fontSize: '1.4rem', fontWeight: 900,
+  letterSpacing: '0.12em', textTransform: 'uppercase',
+}
+
+const modeDesc = {
+  margin: 0, fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)',
+  letterSpacing: '0.04em', lineHeight: 1.6, textAlign: 'center',
+  fontFamily: "'Outfit', sans-serif",
+}
+
+const modeDivider = {
+  height: '1px', background: 'rgba(255,255,255,0.08)',
+}
+
+const modeBtns = {
+  display: 'flex', flexDirection: 'column', gap: '0.75rem',
+}
+
+const modeBtn = {
+  width: '100%', padding: '0.9rem 1.5rem',
+  fontSize: '0.78rem', fontWeight: 700,
   fontFamily: "'Orbitron', sans-serif",
-  color: '#ffffff',
-  background: 'rgba(10, 10, 20, 0.7)',
-  backdropFilter: 'blur(10px)',
-  border: '2px solid rgba(100, 100, 100, 0.5)',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  transition: 'all 0.3s ease',
-  textTransform: 'uppercase',
-  letterSpacing: '0.15em',
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
-  outline: 'none',
+  color: 'rgba(255,255,255,0.82)',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px', cursor: 'pointer',
+  letterSpacing: '0.16em', textTransform: 'uppercase',
+  transition: 'all 0.25s ease', outline: 'none',
 }
 
-const neonButtonHover = (color) => ({
-  border: `2px solid ${color}`,
-  boxShadow: `
-    0 0 20px ${color},
-    0 0 40px ${color}88,
-    0 4px 30px rgba(0, 0, 0, 0.7),
-    inset 0 0 15px ${color}33
-  `,
-  textShadow: `0 0 10px ${color}`,
-  transform: 'translateY(-2px)',
-})
-
-const cardGlow = (color) => ({ display: 'none' })
-const cardIconWrapper = (color) => ({ display: 'none' })
-const cardIcon = { display: 'none' }
-const cardTitle = { display: 'none' }
-const cardDesc = { display: 'none' }
-const cardArrow = { display: 'none' }
-const actionCard = { display: 'none' }
-const actionCardHover = { display: 'none' }
-
-const audioBtn = {
-  display: 'none',
-}
-
-const bottomInfo = {
-  position: 'absolute',
-  bottom: '2rem',
-  display: 'none',
-}
-
-const controlHint = {
-  display: 'none',
-}
-
-const hintKey = {
-  display: 'none',
+const vertDivider = {
+  width: '1px', alignSelf: 'stretch', margin: '0 0.5rem',
+  background: 'rgba(255,255,255,0.07)',
+  flexShrink: 0,
 }

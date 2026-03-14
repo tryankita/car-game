@@ -4,12 +4,13 @@ import useGameStore from './store'
 import audioManager from './audioManager'
 
 // Lazy-loaded UI pages
-const Home       = lazy(() => import('./components/UI/Home'))
-const Garage     = lazy(() => import('./components/UI/Garage'))
-const Levels     = lazy(() => import('./components/UI/Levels'))
-const PreRace    = lazy(() => import('./components/UI/PreRace'))
-const HUD        = lazy(() => import('./components/UI/HUD'))
-const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
+const Home        = lazy(() => import('./components/UI/Home'))
+const Garage      = lazy(() => import('./components/UI/Garage'))
+const Levels      = lazy(() => import('./components/UI/Levels'))
+const PreRace     = lazy(() => import('./components/UI/PreRace'))
+const HUD         = lazy(() => import('./components/UI/HUDPhoto'))
+const RaceFinish  = lazy(() => import('./components/UI/RaceFinish'))
+const ArcadeGame  = lazy(() => import('./components/UI/ArcadeGame'))
 
 // Lazy-loaded 3D scene components
 const Car        = lazy(() => import('./components/Car'))
@@ -178,8 +179,17 @@ export default function App() {
   useEffect(() => {
     if (screen === 'home' || screen === 'garage' || screen === 'levels' || screen === 'prerace') {
       audioManager.playMenuMusic()
+    } else if (screen === 'arcade') {
+      audioManager.stopMenuMusic()
     }
   }, [screen])
+
+  if (screen === 'arcade')
+    return (
+      <Suspense fallback={<PageLoader label="ARCADE" />}>
+        <ArcadeGame />
+      </Suspense>
+    )
 
   if (screen === 'home')
     return (
