@@ -36,6 +36,24 @@ export default function ModeSelect() {
         {/* Two big cards */}
         <div style={cardsRow}>
 
+          {/* ARCADE */}
+          <button
+            style={{
+              ...card,
+              borderColor: hover === 'arcade' ? '#facc15' : 'rgba(250,204,21,0.2)',
+              boxShadow: hover === 'arcade'
+                ? '0 0 40px rgba(250,204,21,0.35), inset 0 0 30px rgba(250,204,21,0.08)'
+                : '0 0 15px rgba(250,204,21,0.1)',
+              transform: hover === 'arcade' ? 'translateY(-6px) scale(1.03)' : 'none',
+            }}
+            onMouseEnter={() => setHover('arcade')}
+            onMouseLeave={() => setHover(null)}
+            onClick={() => go('arcade')}
+          >
+            <span style={cardIcon}>🎮</span>
+            <span style={{ ...cardLabel, color: '#facc15' }}>ARCADE</span>
+          </button>
+
           {/* TRACK RACE */}
           <button
             style={{
@@ -52,24 +70,6 @@ export default function ModeSelect() {
           >
             <span style={cardIcon}>🏁</span>
             <span style={{ ...cardLabel, color: '#00b4ff' }}>TRACK RACE</span>
-          </button>
-
-          {/* ARCADE */}
-          <button
-            style={{
-              ...card,
-              borderColor: hover === 'arcade' ? '#facc15' : 'rgba(250,204,21,0.2)',
-              boxShadow: hover === 'arcade'
-                ? '0 0 40px rgba(250,204,21,0.35), inset 0 0 30px rgba(250,204,21,0.08)'
-                : '0 0 15px rgba(250,204,21,0.1)',
-              transform: hover === 'arcade' ? 'translateY(-6px) scale(1.03)' : 'none',
-            }}
-            onMouseEnter={() => setHover('arcade')}
-            onMouseLeave={() => setHover(null)}
-            onClick={() => go('arcade')}
-          >
-            <span style={cardIcon}>🕹</span>
-            <span style={{ ...cardLabel, color: '#facc15' }}>ARCADE</span>
           </button>
 
         </div>

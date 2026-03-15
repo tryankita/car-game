@@ -15,7 +15,7 @@ import {
 
 // ── Procedural asphalt texture ─────────────────────────────
 function makeAsphaltTexture() {
-  const size = 512
+  const size = 256
   const canvas = document.createElement('canvas')
   canvas.width = size; canvas.height = size
   const ctx = canvas.getContext('2d')
@@ -177,7 +177,7 @@ function genBuildings(frames, levelSeed) {
 
   const MIN_CLEARANCE = WALL_D + 15
 
-  function isSafe(bx, bz, bw, bd) {
+  function isSafe(bx, bz, bw, bd, hintIdx) {
     const halfW = bw / 2 + 2
     const halfD = bd / 2 + 2
     
@@ -199,22 +199,23 @@ function genBuildings(frames, levelSeed) {
     )
     
     for (const [cx, cz] of checkPoints) {
-      const info = nearestTrackInfo(cx, cz)
+      const info = nearestTrackInfo(cx, cz, hintIdx)
       if (Math.abs(info.signedDist) < MIN_CLEARANCE) return false
     }
     return true
   }
 
-  const step = Math.floor(frames.length / 50)
+  const step = Math.floor(frames.length / 120)
 
-  for (let i = 0; i < frames.length; i += step + Math.floor(r() * step * 0.4)) {
+  for (let i = 0; i < frames.length; i += step + Math.floor(r() * step * 0.2)) {
     const f = frames[i % frames.length]
 
-    const d1 = WALL_D + 8 + r() * 28
+    // Inner side — close row
+    const d1 = WALL_D + 6 + r() * 20
     const bx1 = f.p.x - f.nm.x * d1
     const bz1 = f.p.z - f.nm.z * d1
     const w1 = 6 + r() * 14, d1b = 6 + r() * 14
-    if (isSafe(bx1, bz1, w1, d1b)) {
+    if (isSafe(bx1, bz1, w1, d1b, i % frames.length)) {
       const h = 10 + r() * 55
       list.push({
         x: bx1, z: bz1,
@@ -231,24 +232,71 @@ function genBuildings(frames, levelSeed) {
       })
     }
 
-    if (r() > 0.65) {
-      const d2 = WALL_D + 8 + r() * 18
-      const bx2 = f.p.x + f.nm.x * d2
-      const bz2 = f.p.z + f.nm.z * d2
-      const w2 = 5 + r() * 10, d2b = 5 + r() * 10
-      if (isSafe(bx2, bz2, w2, d2b)) {
-        const h = 8 + r() * 30
+    // Outer side — close row (always try, not gated by probability)
+    const d2 = WALL_D + 6 + r() * 20
+    const bx2 = f.p.x + f.nm.x * d2
+    const bz2 = f.p.z + f.nm.z * d2
+    const w2 = 5 + r() * 12, d2b = 5 + r() * 12
+    if (isSafe(bx2, bz2, w2, d2b, i % frames.length)) {
+      const h = 8 + r() * 40
+      list.push({
+        x: bx2, z: bz2,
+        w: w2, h, d: d2b,
+        c: PAL[Math.floor(r() * PAL.length)],
+        glass: GLASS[Math.floor(r() * GLASS.length)],
+        accent: ACCENT[Math.floor(r() * ACCENT.length)],
+        win: r() > 0.2,
+        antenna: h > 30 && r() > 0.5,
+        roofLight: h > 20,
+        neonStrip: r() > 0.55,
+        acUnits: r() > 0.6,
+        billboard: h > 35 && r() > 0.5,
+      })
+    }
+
+    // Inner side — far row (second layer behind first)
+    if (r() > 0.3) {
+      const d3 = WALL_D + 30 + r() * 25
+      const bx3 = f.p.x - f.nm.x * d3
+      const bz3 = f.p.z - f.nm.z * d3
+      const w3 = 8 + r() * 16, d3b = 8 + r() * 16
+      if (isSafe(bx3, bz3, w3, d3b, i % frames.length)) {
+        const h = 15 + r() * 50
         list.push({
-          x: bx2, z: bz2,
-          w: w2, h, d: d2b,
+          x: bx3, z: bz3,
+          w: w3, h, d: d3b,
           c: PAL[Math.floor(r() * PAL.length)],
           glass: GLASS[Math.floor(r() * GLASS.length)],
           accent: ACCENT[Math.floor(r() * ACCENT.length)],
           win: r() > 0.3,
-          antenna: h > 30 && r() > 0.5,
-          roofLight: h > 20,
-          neonStrip: r() > 0.55,
-          acUnits: r() > 0.7,
+          antenna: h > 35 && r() > 0.4,
+          roofLight: h > 25,
+          neonStrip: r() > 0.5,
+          acUnits: r() > 0.5,
+          billboard: false,
+        })
+      }
+    }
+
+    // Outer side — far row
+    if (r() > 0.3) {
+      const d4 = WALL_D + 30 + r() * 25
+      const bx4 = f.p.x + f.nm.x * d4
+      const bz4 = f.p.z + f.nm.z * d4
+      const w4 = 8 + r() * 16, d4b = 8 + r() * 16
+      if (isSafe(bx4, bz4, w4, d4b, i % frames.length)) {
+        const h = 15 + r() * 50
+        list.push({
+          x: bx4, z: bz4,
+          w: w4, h, d: d4b,
+          c: PAL[Math.floor(r() * PAL.length)],
+          glass: GLASS[Math.floor(r() * GLASS.length)],
+          accent: ACCENT[Math.floor(r() * ACCENT.length)],
+          win: r() > 0.3,
+          antenna: h > 35 && r() > 0.4,
+          roofLight: h > 25,
+          neonStrip: r() > 0.5,
+          acUnits: r() > 0.5,
           billboard: false,
         })
       }
@@ -257,13 +305,17 @@ function genBuildings(frames, levelSeed) {
   return list
 }
 
-// ── Sub-components ─────────────────────────────────────────
+/* ── Shared window material (created once, reused by all buildings) ── */
+const _winMat = new THREE.MeshStandardMaterial({
+  color: '#c8ddf0', emissive: '#c8ddf0', emissiveIntensity: 0.05,
+  transparent: true, opacity: 0.55, depthWrite: false,
+})
 
-/* ── Cinematic Building ─────────────────────────────────────── */
-function Bld({ b, winMat, neonMat }) {
-  // Cap windows to reduce mesh count (Phase 5 optimisation)
-  const rows    = Math.min(Math.floor(b.h / 4.5), 3)
-  const winCols = Math.min(Math.max(1, Math.floor(b.w / 3)), 3)
+/* ── Cinematic Building with optimized windows ─────────────────── */
+function Bld({ b, neonMat }) {
+  // Reduced caps: max 4 rows, 3 cols per face, only front + back faces
+  const rows    = Math.min(Math.floor(b.h / 3.2), 4)
+  const winCols = Math.min(Math.max(1, Math.floor(b.w / 2.5)), 3)
 
   return (
     <group position={[b.x, 0, b.z]}>
@@ -292,36 +344,38 @@ function Bld({ b, winMat, neonMat }) {
         <meshStandardMaterial color="#888" metalness={0.6} roughness={0.2} />
       </mesh>
 
-      {/* ── Windows on front face ─────────────────────────── */}
+      {/* ── Windows on front face (+Z) ─────────────────────── */}
       {b.win && rows > 0 && Array.from({ length: rows }, (_, r) =>
         Array.from({ length: winCols }, (_, c) => (
           <mesh key={`wf${r}_${c}`}
             position={[
               -b.w * 0.4 + c * (b.w * 0.8 / winCols) + (b.w * 0.4 / winCols),
-              2.5 + r * 4.5,
+              2.5 + r * 3.2,
               b.d / 2 + 0.04,
             ]}
+            material={_winMat}
           >
-            <planeGeometry args={[b.w * 0.6 / winCols, 1.2]} />
-            {winMat ? <primitive object={winMat} attach="material" /> :
-              <meshStandardMaterial color="#ffeeaa" emissive="#ffeeaa"
-                emissiveIntensity={0.2} transparent opacity={0.5} />}
+            <planeGeometry args={[b.w * 0.55 / winCols, 1.4]} />
           </mesh>
         ))
       ).flat()}
 
-      {/* ── Windows on side face ──────────────────────────── */}
-      {b.win && rows > 0 && Array.from({ length: rows }, (_, r) => (
-        <mesh key={`ws${r}`}
-          position={[b.w / 2 + 0.04, 2.5 + r * 4.5, 0]}
-          rotation={[0, Math.PI / 2, 0]}
-        >
-          <planeGeometry args={[b.d * 0.5, 1.2]} />
-          {winMat ? <primitive object={winMat} attach="material" /> :
-            <meshStandardMaterial color="#ffeeaa" emissive="#ffeeaa"
-              emissiveIntensity={0.2} transparent opacity={0.5} />}
-        </mesh>
-      ))}
+      {/* ── Windows on back face (-Z) ──────────────────────── */}
+      {b.win && rows > 0 && Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: winCols }, (_, c) => (
+          <mesh key={`wb${r}_${c}`}
+            position={[
+              -b.w * 0.4 + c * (b.w * 0.8 / winCols) + (b.w * 0.4 / winCols),
+              2.5 + r * 3.2,
+              -(b.d / 2 + 0.04),
+            ]}
+            rotation={[0, Math.PI, 0]}
+            material={_winMat}
+          >
+            <planeGeometry args={[b.w * 0.55 / winCols, 1.4]} />
+          </mesh>
+        ))
+      ).flat()}
 
       {/* ── Neon accent strip along roof edge ─────────────── */}
       {b.neonStrip && (
@@ -386,6 +440,179 @@ function Lamp({ pos }) {
         <boxGeometry args={[0.55, 0.22, 0.55]} />
         <meshStandardMaterial color="#444" metalness={0.6} roughness={0.4} />
       </mesh>
+    </group>
+  )
+}
+
+/* ── Shopping Mall — wide glass-front building ─────────────── */
+function ShoppingMall({ pos, ry }) {
+  return (
+    <group position={pos} rotation={[0, ry, 0]}>
+      {/* Main body */}
+      <mesh position={[0, 5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[28, 10, 18]} />
+        <meshStandardMaterial color="#d4cfc8" roughness={0.7} />
+      </mesh>
+      {/* Glass facade front */}
+      <mesh position={[0, 5.5, 9.05]}>
+        <planeGeometry args={[26, 8]} />
+        <meshStandardMaterial color="#88ccee" metalness={0.5} roughness={0.1}
+          transparent opacity={0.6} />
+      </mesh>
+      {/* Glass facade back */}
+      <mesh position={[0, 5.5, -9.05]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[26, 8]} />
+        <meshStandardMaterial color="#88ccee" metalness={0.5} roughness={0.1}
+          transparent opacity={0.6} />
+      </mesh>
+      {/* Entrance canopy */}
+      <mesh position={[0, 1.8, 9.5]} castShadow>
+        <boxGeometry args={[8, 0.3, 3]} />
+        <meshStandardMaterial color="#555" metalness={0.6} roughness={0.3} />
+      </mesh>
+      {/* Roof */}
+      <mesh position={[0, 10.2, 0]}>
+        <boxGeometry args={[28.4, 0.4, 18.4]} />
+        <meshStandardMaterial color="#888" metalness={0.3} roughness={0.5} />
+      </mesh>
+      {/* Sign panel on front */}
+      <mesh position={[0, 9, 9.08]}>
+        <planeGeometry args={[14, 1.8]} />
+        <meshStandardMaterial color="#ff6600" emissive="#ff6600" emissiveIntensity={0.6} />
+      </mesh>
+      {/* "MALL" white text strip */}
+      <mesh position={[0, 9, 9.1]}>
+        <planeGeometry args={[10, 0.7]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+      {/* Parking lot ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 16]}>
+        <planeGeometry args={[30, 12]} />
+        <meshStandardMaterial color="#2a2a2a" roughness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ── Hospital — white building with red cross ─────────────── */
+function Hospital({ pos, ry }) {
+  return (
+    <group position={pos} rotation={[0, ry, 0]}>
+      {/* Main building */}
+      <mesh position={[0, 8, 0]} castShadow receiveShadow>
+        <boxGeometry args={[20, 16, 14]} />
+        <meshStandardMaterial color="#f0f0f0" roughness={0.5} />
+      </mesh>
+      {/* Red stripe accent at top */}
+      <mesh position={[0, 15.5, 7.05]}>
+        <planeGeometry args={[20, 1.2]} />
+        <meshStandardMaterial color="#cc0000" emissive="#cc0000" emissiveIntensity={0.4} />
+      </mesh>
+      {/* Red cross — vertical bar */}
+      <mesh position={[0, 10, 7.06]}>
+        <planeGeometry args={[1.5, 6]} />
+        <meshStandardMaterial color="#dd0000" emissive="#dd0000" emissiveIntensity={0.8} />
+      </mesh>
+      {/* Red cross — horizontal bar */}
+      <mesh position={[0, 10, 7.07]}>
+        <planeGeometry args={[6, 1.5]} />
+        <meshStandardMaterial color="#dd0000" emissive="#dd0000" emissiveIntensity={0.8} />
+      </mesh>
+      {/* Windows grid */}
+      {Array.from({ length: 4 }, (_, row) =>
+        Array.from({ length: 5 }, (_, col) => (
+          <mesh key={`hw${row}_${col}`}
+            position={[-8 + col * 4, 4 + row * 3.5, 7.04]}
+          >
+            <planeGeometry args={[2.2, 1.8]} />
+            <meshStandardMaterial color="#aaddee" metalness={0.3} roughness={0.2}
+              transparent opacity={0.5} />
+          </mesh>
+        ))
+      ).flat()}
+      {/* Entrance */}
+      <mesh position={[0, 2.5, 7.08]}>
+        <planeGeometry args={[4, 5]} />
+        <meshStandardMaterial color="#88bbcc" metalness={0.4} roughness={0.2}
+          transparent opacity={0.6} />
+      </mesh>
+      {/* Entrance canopy */}
+      <mesh position={[0, 5.2, 8]} castShadow>
+        <boxGeometry args={[6, 0.3, 2.5]} />
+        <meshStandardMaterial color="#ccc" metalness={0.5} />
+      </mesh>
+      {/* Helipad on roof */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[5, 16.05, 0]}>
+        <circleGeometry args={[3, 24]} />
+        <meshStandardMaterial color="#cc0000" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[5, 16.06, 0]}>
+        <ringGeometry args={[2.4, 3, 24]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+    </group>
+  )
+}
+
+/* ── Eiffel Tower — iconic lattice structure ──────────────── */
+function EiffelTower({ pos }) {
+  const baseW = 12
+  const totalH = 65
+  return (
+    <group position={pos}>
+      {/* 4 legs */}
+      {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sz], i) => (
+        <mesh key={`leg${i}`}
+          position={[sx * baseW / 3, totalH * 0.22, sz * baseW / 3]}
+          rotation={[sz * 0.15, 0, sx * -0.15]}
+          castShadow
+        >
+          <boxGeometry args={[1.2, totalH * 0.5, 1.2]} />
+          <meshStandardMaterial color="#8B7355" metalness={0.7} roughness={0.3} />
+        </mesh>
+      ))}
+      {/* Platform 1 (lower) */}
+      <mesh position={[0, totalH * 0.3, 0]} castShadow>
+        <boxGeometry args={[baseW * 0.7, 0.8, baseW * 0.7]} />
+        <meshStandardMaterial color="#7a6a50" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {/* Mid section — 4 converging pillars */}
+      {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sz], i) => (
+        <mesh key={`mid${i}`}
+          position={[sx * baseW / 6, totalH * 0.48, sz * baseW / 6]}
+          castShadow
+        >
+          <boxGeometry args={[0.8, totalH * 0.3, 0.8]} />
+          <meshStandardMaterial color="#8B7355" metalness={0.7} roughness={0.3} />
+        </mesh>
+      ))}
+      {/* Platform 2 (mid) */}
+      <mesh position={[0, totalH * 0.58, 0]} castShadow>
+        <boxGeometry args={[baseW * 0.4, 0.6, baseW * 0.4]} />
+        <meshStandardMaterial color="#7a6a50" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {/* Upper column */}
+      <mesh position={[0, totalH * 0.77, 0]} castShadow>
+        <boxGeometry args={[1.5, totalH * 0.35, 1.5]} />
+        <meshStandardMaterial color="#8B7355" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Antenna/spire */}
+      <mesh position={[0, totalH - 1.5, 0]} castShadow>
+        <cylinderGeometry args={[0.1, 0.35, 6, 8]} />
+        <meshStandardMaterial color="#aaa" metalness={0.9} roughness={0.1} />
+      </mesh>
+      {/* Red light at top */}
+      <mesh position={[0, totalH + 1, 0]}>
+        <sphereGeometry args={[0.3, 8, 8]} />
+        <meshStandardMaterial color="#ff2200" emissive="#ff2200" emissiveIntensity={3} />
+      </mesh>
+      {/* Cross-braces (decorative) */}
+      {[0.15, 0.35, 0.55].map((t, i) => (
+        <mesh key={`brace${i}`} position={[0, totalH * t, 0]}>
+          <boxGeometry args={[baseW * (0.7 - t * 0.7), 0.3, baseW * (0.7 - t * 0.7)]} />
+          <meshStandardMaterial color="#6a5a44" metalness={0.5} roughness={0.4} />
+        </mesh>
+      ))}
     </group>
   )
 }
@@ -479,6 +706,47 @@ function InstancedDashes({ dashes }) {
   return <instancedMesh ref={ref} geometry={geo} material={mat} count={dashes.length} />
 }
 
+/* ── Instanced lane lines (dashed + solid edge lines) ─────── */
+function InstancedLaneLines({ lines }) {
+  const ref = useRef()
+  const geo = useMemo(() => new THREE.PlaneGeometry(0.18, 2.8), [])
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: 'white', transparent: true, opacity: 0.55 }), [])
+  useEffect(() => {
+    const mesh = ref.current
+    if (!mesh || !lines.length) return
+    const dummy = new THREE.Object3D()
+    lines.forEach((l, i) => {
+      dummy.position.set(l.x, 0.025, l.z)
+      dummy.rotation.set(-Math.PI / 2, l.ry, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  }, [lines])
+  return <instancedMesh ref={ref} geometry={geo} material={mat} count={lines.length} />
+}
+
+function InstancedEdgeLines({ lines }) {
+  const ref = useRef()
+  const geo = useMemo(() => new THREE.PlaneGeometry(0.14, 1.6), [])
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: 'white', transparent: true, opacity: 0.4 }), [])
+  useEffect(() => {
+    const mesh = ref.current
+    if (!mesh || !lines.length) return
+    const dummy = new THREE.Object3D()
+    lines.forEach((l, i) => {
+      dummy.position.set(l.x, 0.025, l.z)
+      dummy.rotation.set(-Math.PI / 2, l.ry, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  }, [lines])
+  return <instancedMesh ref={ref} geometry={geo} material={mat} count={lines.length} />
+}
+
 /* ── Instanced kerb stripes (2 draw calls) ────────────────── */
 function InstancedKerbs({ kerbs }) {
   const redRef   = useRef()
@@ -534,7 +802,8 @@ function InstancedTrees({ frames, selectedLevel }) {
       const px = cx + (rx * 0.2 + r() * rx * 0.6) * Math.cos(angle)
       const pz = cz + (rz * 0.2 + r() * rz * 0.6) * Math.sin(angle)
       const h  = 3 + r() * 4
-      const info = nearestTrackInfo(px, pz)
+      const hintFrame = Math.floor((i / 20) * frames.length) % frames.length
+      const info = nearestTrackInfo(px, pz, hintFrame)
       if (Math.abs(info.signedDist) < WALL_D + 4) continue
       list.push({ px, pz, h, radius: 1 + r() * 0.8, hue: 100 + r() * 40, light: 22 + r() * 12 })
     }
@@ -655,17 +924,10 @@ function StartLightsGantry({ sf }) {
 export default function Track() {
   const selectedLevel = useGameStore((s) => s.selectedLevel)
 
-  // Activate the correct level's track data
-  setActiveLevel(selectedLevel)
-
   const curve  = useMemo(() => { setActiveLevel(selectedLevel); return makeCurve() }, [selectedLevel])
   const frames = useMemo(() => sampleFrames(curve, SAMPLES), [curve])
 
-  // ── Shared materials (day only — window emissive kept low) ──
-  const winMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#c8ddf0', emissive: '#c8ddf0', emissiveIntensity: 0.05,
-    transparent: true, opacity: 0.55,
-  }), [])
+  // Shared neon material (day only)
   const neonMat = useMemo(() => new THREE.MeshStandardMaterial({
     color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 0.15,
   }), [])
@@ -690,6 +952,45 @@ export default function Track() {
         const f = frames[i]
         arr.push({ x: f.p.x, z: f.p.z, ry: f.ry })
       }
+    return arr
+  }, [frames])
+
+  // Lane divider dashes — two dashed lines at ±HW/3 from center
+  const laneLines = useMemo(() => {
+    const arr = []
+    const offsets = [HW / 3, -HW / 3]  // two lane dividers
+    for (let i = 0; i < frames.length; i += 8) {
+      if (Math.floor(i / 8) % 2 === 0) {
+        const f = frames[i]
+        for (const off of offsets) {
+          arr.push({
+            x: f.p.x + f.nm.x * off,
+            z: f.p.z + f.nm.z * off,
+            ry: f.ry,
+          })
+        }
+      }
+    }
+    return arr
+  }, [frames])
+
+  // Edge lines — continuous solid lines near the road edges
+  const edgeLines = useMemo(() => {
+    const arr = []
+    const edgeOff = HW - 0.8  // just inside the curbs
+    for (let i = 0; i < frames.length; i += 3) {
+      const f = frames[i]
+      arr.push({
+        x: f.p.x + f.nm.x * edgeOff,
+        z: f.p.z + f.nm.z * edgeOff,
+        ry: f.ry,
+      })
+      arr.push({
+        x: f.p.x - f.nm.x * edgeOff,
+        z: f.p.z - f.nm.z * edgeOff,
+        ry: f.ry,
+      })
+    }
     return arr
   }, [frames])
 
@@ -838,6 +1139,12 @@ export default function Track() {
       {/* Centre-line dashes — single instanced draw call */}
       <InstancedDashes dashes={dashes} />
 
+      {/* Lane divider lines */}
+      <InstancedLaneLines lines={laneLines} />
+
+      {/* Edge lines */}
+      <InstancedEdgeLines lines={edgeLines} />
+
       {/* Kerb stripes — 2 instanced draw calls (red + white) */}
       <InstancedKerbs kerbs={kerbs} />
 
@@ -977,8 +1284,29 @@ export default function Track() {
         <CameraLattice key={`ct${i}`} pos={ct.pos} ry={ct.ry} />
       ))}
 
-      {/* Buildings */}
-      {blds.map((b, i) => <Bld key={`b${i}`} b={b} winMat={winMat} neonMat={neonMat} />)}
+      {/* Buildings — windows included with reduced counts for performance */}
+      {blds.map((b, i) => <Bld key={`b${i}`} b={b} neonMat={neonMat} />)}
+
+      {/* ── Landmark Buildings ────────────────────────────────── */}
+      {(() => {
+        // Place landmarks at 25%, 50%, 75% around the track, on the outer side
+        const landmarkFrames = [Math.floor(frames.length * 0.25), Math.floor(frames.length * 0.5), Math.floor(frames.length * 0.75)]
+        const lmOff = WALL_D + 30
+        const lm = landmarkFrames.map(idx => {
+          const f = frames[idx]
+          return {
+            pos: [f.p.x + f.nm.x * lmOff, 0, f.p.z + f.nm.z * lmOff],
+            ry: f.ry + Math.PI / 2,
+          }
+        })
+        return (
+          <>
+            <ShoppingMall pos={lm[0].pos} ry={lm[0].ry} />
+            <Hospital pos={lm[1].pos} ry={lm[1].ry} />
+            <EiffelTower pos={lm[2].pos} />
+          </>
+        )
+      })()}
 
       {/* Decorative trees — 2 instanced draw calls */}
       <InstancedTrees frames={frames} selectedLevel={selectedLevel} />

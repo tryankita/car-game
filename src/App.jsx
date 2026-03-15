@@ -4,21 +4,21 @@ import useGameStore from './store'
 import audioManager from './audioManager'
 
 // Lazy-loaded UI pages
-const Home        = lazy(() => import('./components/UI/Home'))
-const Garage      = lazy(() => import('./components/UI/Garage'))
-const Levels      = lazy(() => import('./components/UI/Levels'))
-const PreRace     = lazy(() => import('./components/UI/PreRace'))
-const HUD         = lazy(() => import('./components/UI/HUDPhoto'))
-const RaceFinish  = lazy(() => import('./components/UI/RaceFinish'))
-const ArcadeGame  = lazy(() => import('./components/UI/ArcadeGame'))
-const ModeSelect  = lazy(() => import('./components/UI/ModeSelect'))
+const Home = lazy(() => import('./components/UI/Home'))
+const Garage = lazy(() => import('./components/UI/Garage'))
+const Levels = lazy(() => import('./components/UI/Levels'))
+const PreRace = lazy(() => import('./components/UI/PreRace'))
+const HUD = lazy(() => import('./components/UI/HUDPhoto'))
+const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
+const ArcadeGame = lazy(() => import('./components/UI/ArcadeGame'))
+const ModeSelect = lazy(() => import('./components/UI/ModeSelect'))
 
 // Lazy-loaded 3D scene components
-const Car        = lazy(() => import('./components/Car'))
-const AIRacers   = lazy(() => import('./components/AIRacers'))
-const Track      = lazy(() => import('./components/Track'))
-const Terrain    = lazy(() => import('./components/Terrain'))
-const Lighting   = lazy(() => import('./components/Lighting'))
+const Car = lazy(() => import('./components/Car'))
+const AIRacers = lazy(() => import('./components/AIRacers'))
+const Track = lazy(() => import('./components/Track'))
+const Terrain = lazy(() => import('./components/Terrain'))
+const Lighting = lazy(() => import('./components/Lighting'))
 
 /* ── Loading Fallback ───────────────────────────────────────── */
 function PageLoader({ label = 'LOADING' }) {
@@ -99,7 +99,7 @@ function GameScene() {
 
   useEffect(() => {
     audioManager.playRaceMusic()
-    
+
     const t1 = setTimeout(() => setCountdown(2), 1000)
     const t2 = setTimeout(() => setCountdown(1), 2000)
     const t3 = setTimeout(() => {

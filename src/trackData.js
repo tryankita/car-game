@@ -344,7 +344,7 @@ function makeStraightTrack() {
 export const LEVEL_TRACKS = Array.from({ length: 50 }, () => makeStraightTrack())
 
 // ── Track dimension constants (same for all levels) ─────────
-export const ROAD_W  = 22
+export const ROAD_W  = 30
 export const HW      = ROAD_W / 2
 export const CURB_W  = 1.2
 export const SW_W    = 3.0

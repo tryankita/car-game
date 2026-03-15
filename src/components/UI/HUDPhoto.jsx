@@ -394,11 +394,11 @@ const topBar = {
   top: 0,
   left: '50%',
   transform: 'translateX(-50%)',
-  minWidth: '460px',
-  maxWidth: '72vw',
+  width: '520px',
+  maxWidth: '90vw',
   height: '62px',
   display: 'grid',
-  gridTemplateColumns: '1fr 1fr 1fr',
+  gridTemplateColumns: '120px 1fr 120px',
   alignItems: 'center',
   padding: '0 18px',
   background: 'linear-gradient(180deg, rgba(8,14,22,0.97) 0%, rgba(14,22,34,0.95) 100%)',
@@ -412,11 +412,11 @@ const topBarLeft = { display: 'flex', alignItems: 'baseline', gap: '4px' }
 const topBarCenter = { display: 'flex', justifyContent: 'center', alignItems: 'center' }
 const topBarRight = { display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: '6px' }
 const topBarLabel = { color: 'rgba(255,205,0,0.85)', fontSize: '0.72rem', letterSpacing: '0.14em', fontWeight: 700 }
-const topBarBig = { color: '#ffffff', fontSize: '2rem', fontWeight: 900, lineHeight: 1 }
+const topBarBig = { color: '#ffffff', fontSize: '2rem', fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }
 const topBarSlash = { color: 'rgba(255,255,255,0.35)', fontSize: '1.1rem' }
 const topBarSub = { color: 'rgba(255,255,255,0.55)', fontSize: '0.9rem' }
-const topBarDelta = { color: '#ff9e4a', fontSize: '1.1rem', fontWeight: 700 }
-const topTime = { color: '#f3f6ff', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.04em', lineHeight: 1 }
+const topBarDelta = { color: '#ff9e4a', fontSize: '1.1rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }
+const topTime = { color: '#f3f6ff', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.06em', lineHeight: 1, fontFamily: "'Orbitron', 'Courier New', monospace", fontVariantNumeric: 'tabular-nums', width: '220px', textAlign: 'center', display: 'inline-block' }
 
 const leftBoard = {
   position: 'absolute',
@@ -491,9 +491,9 @@ const telColLeft = { display: 'flex', flexDirection: 'column', justifyContent: '
 const telColMid = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }
 const telColRight = { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px', borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: '12px' }
 const telChipLabel = { color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', letterSpacing: '0.12em', fontWeight: 700 }
-const telChipVal = { color: '#f3f8ff', fontSize: '1.55rem', fontWeight: 800, lineHeight: 1.05 }
+const telChipVal = { color: '#f3f8ff', fontSize: '1.55rem', fontWeight: 800, lineHeight: 1.05, fontVariantNumeric: 'tabular-nums' }
 const telChipUnit = { fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginLeft: '2px' }
-const speedValue = { color: '#eaf6ff', fontSize: '3.6rem', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.01em' }
+const speedValue = { color: '#eaf6ff', fontSize: '3.6rem', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', minWidth: '140px', textAlign: 'center', display: 'inline-block' }
 const speedUnit = { color: 'rgba(255,255,255,0.55)', fontSize: '0.85rem', letterSpacing: '0.12em', marginTop: '2px' }
 const segmentRail = { display: 'flex', gap: '3px', alignItems: 'center', margin: '10px 0 4px' }
 const segmentCell = { display: 'inline-block', flex: '1', height: '14px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }
