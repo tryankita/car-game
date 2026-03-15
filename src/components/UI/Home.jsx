@@ -1,13 +1,11 @@
 import { useEffect, useState, Suspense, lazy } from 'react'
 import useGameStore from '../../store'
 import audioManager from '../../audioManager'
-import SettingsOverlay from './SettingsOverlay'
 
 const HomeBg3D = lazy(() => import('./HomeBg3D'))
 
 export default function Home() {
   const setScreen = useGameStore((s) => s.setScreen)
-  const setShowSettings = useGameStore((s) => s.setShowSettings)
   const [hover, setHover] = useState(null)
 
   useEffect(() => {
@@ -15,26 +13,10 @@ export default function Home() {
     audioManager.playMenuMusic()
   }, [])
 
-  const go = (screen) => {
+  const handleStart = () => {
     audioManager.enableAudio()
-    setScreen(screen)
+    setScreen('modeselect')
   }
-
-  const btn = (id, label, color, onClick) => (
-    <button
-      style={{ ...modeBtn, borderColor: hover === id ? color : 'rgba(255,255,255,0.12)',
-        boxShadow: hover === id ? `0 0 18px ${color}88, inset 0 0 10px ${color}22` : 'none',
-        color: hover === id ? '#fff' : 'rgba(255,255,255,0.82)',
-        textShadow: hover === id ? `0 0 10px ${color}` : 'none',
-        transform: hover === id ? 'translateY(-2px)' : 'none',
-      }}
-      onMouseEnter={() => setHover(id)}
-      onMouseLeave={() => setHover(null)}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  )
 
   return (
     <div style={containerStyle}>
@@ -51,47 +33,33 @@ export default function Home() {
             <span style={titleGrad}>RACING</span>
           </h1>
           <div style={titleDivider} />
-          <span style={titleSub}>SELECT MODE</span>
+          <span style={titleSub}>SPEED · DRIFT · DOMINATE</span>
         </div>
 
-        {/* Two mode panels */}
-        <div style={modesRow}>
+        {/* Single Start Game Button */}
+        <button
+          style={{
+            ...startBtn,
+            borderColor: hover === 'start' ? '#00b4ff' : 'rgba(0,180,255,0.35)',
+            boxShadow: hover === 'start'
+              ? '0 0 30px rgba(0,180,255,0.5), 0 0 60px rgba(0,180,255,0.2), inset 0 0 20px rgba(0,180,255,0.15)'
+              : '0 0 20px rgba(0,180,255,0.2), inset 0 0 10px rgba(0,180,255,0.05)',
+            transform: hover === 'start' ? 'translateY(-3px) scale(1.03)' : 'none',
+            background: hover === 'start'
+              ? 'linear-gradient(135deg, rgba(0,180,255,0.2), rgba(255,50,80,0.15))'
+              : 'rgba(255,255,255,0.04)',
+          }}
+          onMouseEnter={() => setHover('start')}
+          onMouseLeave={() => setHover(null)}
+          onClick={handleStart}
+        >
+          <span style={startBtnIcon}>▶</span>
+          START GAME
+        </button>
 
-          {/* ── TRACK RACE ── */}
-          <div style={{ ...modeCard, borderColor: hover && hover.startsWith('tr') ? '#00b4ff44' : 'rgba(0,180,255,0.18)' }}>
-            <div style={modeHeader}>
-              <div style={{ ...modeIcon, background: 'linear-gradient(135deg,#003a55,#005f8a)' }}>🏁</div>
-              <h2 style={{ ...modeName, color: '#00b4ff' }}>TRACK RACE</h2>
-              <p style={modeDesc}>Circuit racing on defined tracks.<br/>Compete against AI opponents.</p>
-            </div>
-            <div style={modeDivider} />
-            <div style={modeBtns}>
-              {btn('tr-start', 'START GAME', '#00b4ff', () => go('levels'))}
-              {btn('tr-garage', 'GARAGE', '#00b4ff', () => go('garage'))}
-              {btn('tr-settings', 'SETTINGS', '#00b4ff', () => { audioManager.enableAudio(); setShowSettings(true) })}
-            </div>
-          </div>
-
-          {/* vertical separator */}
-          <div style={vertDivider} />
-
-          {/* ── ARCADE MODE ── */}
-          <div style={{ ...modeCard, borderColor: hover && hover.startsWith('ac') ? '#facc1544' : 'rgba(250,204,21,0.18)' }}>
-            <div style={modeHeader}>
-              <div style={{ ...modeIcon, background: 'linear-gradient(135deg,#3b2800,#7a5400)' }}>🕹</div>
-              <h2 style={{ ...modeName, color: '#facc15' }}>ARCADE MODE</h2>
-              <p style={modeDesc}>Dodge traffic &amp; collect coins.<br/>4 maps · nitro boost · high score.</p>
-            </div>
-            <div style={modeDivider} />
-            <div style={modeBtns}>
-              {btn('ac-start', 'START GAME', '#facc15', () => go('arcade'))}
-            </div>
-          </div>
-
-        </div>
+        {/* Tagline */}
+        <span style={tagline}>Choose your mode and hit the track</span>
       </div>
-
-      <SettingsOverlay />
     </div>
   )
 }
@@ -160,64 +128,27 @@ const titleSub = {
   textTransform: 'uppercase', marginTop: '0.2rem',
 }
 
-const modesRow = {
-  display: 'flex', flexDirection: 'row', alignItems: 'stretch',
-  gap: '0', flexWrap: 'wrap', justifyContent: 'center',
-  maxWidth: '900px', width: '100%',
-}
-
-const modeCard = {
-  flex: '1 1 280px', maxWidth: '380px', minWidth: '240px',
-  display: 'flex', flexDirection: 'column', gap: '1.2rem',
-  padding: '2rem 2.4rem',
-  background: 'rgba(8,12,22,0.72)', backdropFilter: 'blur(14px)',
-  border: '1px solid', borderRadius: '16px',
-  transition: 'border-color 0.3s',
-}
-
-const modeHeader = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', textAlign: 'center',
-}
-
-const modeIcon = {
-  width: '56px', height: '56px', borderRadius: '12px',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  fontSize: '1.8rem',
-}
-
-const modeName = {
-  margin: 0, fontSize: '1.4rem', fontWeight: 900,
-  letterSpacing: '0.12em', textTransform: 'uppercase',
-}
-
-const modeDesc = {
-  margin: 0, fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)',
-  letterSpacing: '0.04em', lineHeight: 1.6, textAlign: 'center',
-  fontFamily: "'Outfit', sans-serif",
-}
-
-const modeDivider = {
-  height: '1px', background: 'rgba(255,255,255,0.08)',
-}
-
-const modeBtns = {
-  display: 'flex', flexDirection: 'column', gap: '0.75rem',
-}
-
-const modeBtn = {
-  width: '100%', padding: '0.9rem 1.5rem',
-  fontSize: '0.78rem', fontWeight: 700,
+const startBtn = {
+  padding: '1.2rem 3.5rem',
+  fontSize: '1.1rem', fontWeight: 900,
   fontFamily: "'Orbitron', sans-serif",
-  color: 'rgba(255,255,255,0.82)',
+  color: '#ffffff',
   background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', cursor: 'pointer',
-  letterSpacing: '0.16em', textTransform: 'uppercase',
-  transition: 'all 0.25s ease', outline: 'none',
+  border: '2px solid rgba(0,180,255,0.35)',
+  borderRadius: '14px', cursor: 'pointer',
+  letterSpacing: '0.2em', textTransform: 'uppercase',
+  transition: 'all 0.3s ease', outline: 'none',
+  display: 'flex', alignItems: 'center', gap: '0.8rem',
+  textShadow: '0 0 15px rgba(0,180,255,0.6)',
 }
 
-const vertDivider = {
-  width: '1px', alignSelf: 'stretch', margin: '0 0.5rem',
-  background: 'rgba(255,255,255,0.07)',
-  flexShrink: 0,
+const startBtnIcon = {
+  fontSize: '1.3rem',
+  filter: 'drop-shadow(0 0 8px rgba(0,180,255,0.8))',
+}
+
+const tagline = {
+  fontSize: '0.7rem', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.3)',
+  textTransform: 'uppercase',
+  fontFamily: "'Outfit', sans-serif",
 }

@@ -11,6 +11,7 @@ const PreRace     = lazy(() => import('./components/UI/PreRace'))
 const HUD         = lazy(() => import('./components/UI/HUDPhoto'))
 const RaceFinish  = lazy(() => import('./components/UI/RaceFinish'))
 const ArcadeGame  = lazy(() => import('./components/UI/ArcadeGame'))
+const ModeSelect  = lazy(() => import('./components/UI/ModeSelect'))
 
 // Lazy-loaded 3D scene components
 const Car        = lazy(() => import('./components/Car'))
@@ -177,7 +178,7 @@ export default function App() {
   const screen = useGameStore((s) => s.screen)
 
   useEffect(() => {
-    if (screen === 'home' || screen === 'garage' || screen === 'levels' || screen === 'prerace') {
+    if (screen === 'home' || screen === 'modeselect' || screen === 'garage' || screen === 'levels' || screen === 'prerace') {
       audioManager.playMenuMusic()
     } else if (screen === 'arcade') {
       audioManager.stopMenuMusic()
@@ -195,6 +196,13 @@ export default function App() {
     return (
       <Suspense fallback={<PageLoader label="LOADING" />}>
         <Home /><MusicToggle />
+      </Suspense>
+    )
+
+  if (screen === 'modeselect')
+    return (
+      <Suspense fallback={<PageLoader label="LOADING" />}>
+        <ModeSelect /><MusicToggle />
       </Suspense>
     )
 
