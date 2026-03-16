@@ -118,7 +118,7 @@ const cardsRow = {
 }
 
 const card = {
-  width: '220px', height: '220px',
+  width: 'clamp(150px, 38vw, 220px)', height: 'clamp(150px, 38vw, 220px)',
   display: 'flex', flexDirection: 'column',
   alignItems: 'center', justifyContent: 'center', gap: '1.2rem',
   background: 'rgba(8,12,22,0.75)', backdropFilter: 'blur(14px)',
@@ -128,7 +128,7 @@ const card = {
 }
 
 const cardIcon = {
-  fontSize: '3rem',
+  fontSize: 'clamp(2rem, 6vw, 3rem)',
 }
 
 const cardLabel = {

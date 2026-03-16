@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import useGameStore from '../../store'
 import { getActiveTrack, setActiveLevel } from '../../trackData'
 import { aiProgress, aiWorldPositions, playerProgress } from '../../raceProgress'
+import { touchKeys } from '../../touchControls'
 
 function fmtRace(seconds) {
   if (!seconds || !isFinite(seconds)) return '00:00.000'
@@ -318,6 +319,11 @@ export default function HUDPhoto() {
         }
         @media (max-width: 980px) {
           .hud-photo-hide-mobile { display: none !important; }
+          .hud-touch-controls { display: flex !important; }
+          .hud-telemetry { display: none !important; }
+        }
+        @media (min-width: 981px) {
+          .hud-touch-controls { display: none !important; }
         }
       `}</style>
 
@@ -344,9 +350,45 @@ export default function HUDPhoto() {
       {raceStarted && <div className="hud-photo-hide-mobile"><MinimapPanel /></div>}
       {raceStarted && !raceFinished && (
         <>
-          <TelemetryPanel speed={speed} topSpeed={topSpeed} raceTime={raceTime} currentLap={currentLap} totalLaps={totalLaps} bestLap={bestLap} />
+          <div className="hud-telemetry">
+            <TelemetryPanel speed={speed} topSpeed={topSpeed} raceTime={raceTime} currentLap={currentLap} totalLaps={totalLaps} bestLap={bestLap} />
+          </div>
           <div className="hud-photo-hide-mobile"><TyresPanel raceTime={raceTime} speed={speed} topSpeed={topSpeed} /></div>
         </>
+      )}
+
+      {/* Mobile touch controls — hidden on desktop via CSS */}
+      {raceStarted && !raceFinished && !paused && (
+        <div className="hud-touch-controls" style={touchControlsWrap}>
+          <div style={touchControlsLeft}>
+            <button
+              style={touchBtn}
+              onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowLeft'] = true }}
+              onTouchEnd={() => { touchKeys['ArrowLeft'] = false }}
+              onTouchCancel={() => { touchKeys['ArrowLeft'] = false }}
+            >&#9668;</button>
+            <button
+              style={touchBtn}
+              onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowRight'] = true }}
+              onTouchEnd={() => { touchKeys['ArrowRight'] = false }}
+              onTouchCancel={() => { touchKeys['ArrowRight'] = false }}
+            >&#9658;</button>
+          </div>
+          <div style={touchControlsRight}>
+            <button
+              style={{ ...touchBtn, background: 'rgba(0,180,80,0.28)', borderColor: '#00e676' }}
+              onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowUp'] = true }}
+              onTouchEnd={() => { touchKeys['ArrowUp'] = false }}
+              onTouchCancel={() => { touchKeys['ArrowUp'] = false }}
+            >&#9650; GAS</button>
+            <button
+              style={{ ...touchBtn, background: 'rgba(255,60,60,0.28)', borderColor: '#ff4a4a' }}
+              onTouchStart={(e) => { e.preventDefault(); touchKeys['Space'] = true }}
+              onTouchEnd={() => { touchKeys['Space'] = false }}
+              onTouchCancel={() => { touchKeys['Space'] = false }}
+            >&#9632; BRAKE</button>
+          </div>
+        </div>
       )}
 
       {countdown > 0 && (
@@ -388,16 +430,32 @@ const hudRoot = {
   fontFamily: "'Orbitron', sans-serif",
 }
 
+const touchControlsWrap = {
+  position: 'absolute', bottom: '12px', left: 0, right: 0,
+  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+  padding: '0 14px', zIndex: 50, pointerEvents: 'auto',
+}
+const touchControlsLeft = { display: 'flex', gap: '10px', alignItems: 'flex-end' }
+const touchControlsRight = { display: 'flex', gap: '10px', alignItems: 'flex-end' }
+const touchBtn = {
+  width: '76px', height: '68px', borderRadius: '14px',
+  background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)',
+  border: '2px solid rgba(255,255,255,0.3)', color: '#fff',
+  fontSize: '1.1rem', fontFamily: "'Orbitron', sans-serif", fontWeight: 700,
+  cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
+  touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  letterSpacing: '0.05em', gap: '4px', flexDirection: 'column',
+}
+
 const topBar = {
   position: 'absolute',
   top: 0,
   left: '50%',
   transform: 'translateX(-50%)',
-  width: '520px',
-  maxWidth: '90vw',
+  width: 'min(520px, 95vw)',
   height: '62px',
   display: 'grid',
-  gridTemplateColumns: '120px 1fr 120px',
+  gridTemplateColumns: 'auto 1fr auto',
   alignItems: 'center',
   padding: '0 18px',
   background: 'linear-gradient(180deg, rgba(8,14,22,0.97) 0%, rgba(14,22,34,0.95) 100%)',
@@ -475,7 +533,7 @@ const telemetryWrap = {
   bottom: 0,
   transform: 'translateX(-50%)',
   width: 'min(60vw, 720px)',
-  minWidth: '380px',
+  minWidth: 0,
   background: 'linear-gradient(180deg, rgba(8,14,22,0.97) 0%, rgba(5,9,15,0.95) 100%)',
   borderTop: '1px solid rgba(255,255,255,0.18)',
   borderLeft: '1px solid rgba(255,255,255,0.12)',

@@ -133,13 +133,16 @@ const backdrop = {
 }
 
 const panel = {
-  width: 'min(520px, 92vw)',
+  width: 'min(520px, 94vw)',
+  maxHeight: '90vh',
+  overflowY: 'auto',
   background: 'linear-gradient(145deg, #0e1230 0%, #1a1a3e 50%, #111528 100%)',
   border: '1px solid rgba(0,180,255,0.25)',
   borderRadius: '20px',
-  padding: '2rem 2.2rem',
+  padding: 'clamp(1.2rem, 4vw, 2rem) clamp(1rem, 4vw, 2.2rem)',
   boxShadow: '0 0 60px rgba(0,180,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
   transition: 'all 0.5s cubic-bezier(0.4,0,0.2,1)',
+  scrollbarWidth: 'none',
 }
 
 const trackHeader = {
@@ -166,7 +169,7 @@ const levelBadgeStyle = {
 
 const trackNameStyle = {
   margin: 0,
-  fontSize: '1.4rem',
+  fontSize: 'clamp(1rem, 3vw, 1.4rem)',
   fontWeight: 800,
   color: '#fff',
   letterSpacing: '0.08em',
@@ -217,7 +220,7 @@ const sectionTitle = {
 const starsGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, 1fr)',
-  gap: '0.8rem',
+  gap: 'clamp(0.4rem, 1.5vw, 0.8rem)',
 }
 
 const starCard = {

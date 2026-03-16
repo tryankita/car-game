@@ -7,6 +7,7 @@ import audioManager from '../audioManager'
 import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack, SAMPLES } from '../trackData'
 import { nightFactorRef } from './Lighting'
 import { playerProgress, resetProgress } from '../raceProgress'
+import { touchKeys } from '../touchControls'
 
 const pressedKeys = {}
 const SPEED_FEEL_MULT = 1.75
@@ -468,12 +469,12 @@ export default function Car() {
       lapStartTime.current = state.clock.getElapsedTime()
     }
 
-    // ── Input ─────────────────────────────────────────────────
-    const isFwd   = pressedKeys[keybinds.forward]  || pressedKeys['ArrowUp']
-    const isBack  = pressedKeys[keybinds.backward] || pressedKeys['ArrowDown']
-    const isLeft  = pressedKeys[keybinds.left]     || pressedKeys['ArrowLeft']
-    const isRight = pressedKeys[keybinds.right]    || pressedKeys['ArrowRight']
-    const isBrake = pressedKeys[keybinds.brake]
+    // ── Input (keyboard + mobile touch) ──────────────────────
+    const isFwd   = pressedKeys[keybinds.forward]  || pressedKeys['ArrowUp']    || touchKeys['ArrowUp']
+    const isBack  = pressedKeys[keybinds.backward] || pressedKeys['ArrowDown']  || touchKeys['ArrowDown']
+    const isLeft  = pressedKeys[keybinds.left]     || pressedKeys['ArrowLeft']  || touchKeys['ArrowLeft']
+    const isRight = pressedKeys[keybinds.right]    || pressedKeys['ArrowRight'] || touchKeys['ArrowRight']
+    const isBrake = pressedKeys[keybinds.brake]    || touchKeys['Space']
 
     // ── Acceleration ──────────────────────────────────────────
     if (isFwd)       velocity.current += accel * dt
@@ -642,18 +643,9 @@ export default function Car() {
 
 /*
 
- iuheoiuw hoeiu
- wer we we e
-  oieoi e we
- ewe we we as asasa as as as
-we we re 
-   werwes  ihaish ia
- we rwe recas aas
- wer we weo hoia
-  wie rw
-  e weiroih 
 
-
+jug fuweyg fuwyeg uwyge uwyeg fuwyeguwygeuwyge uywe gfuyweg fiuyeg fiwueyf giwuey gfiuwye fuyw eufy 
+ nb  hgjhgvhgv jhgv hgvjhg jhg hj hgv
 
 
 */

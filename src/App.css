@@ -4,19 +4,31 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   font-family: 'Rajdhani', sans-serif;
   overflow: hidden;
   background: #0a0a0a;
   color: white;
+  /* Prevent double-tap zoom on mobile */
+  touch-action: manipulation;
 }
 
 #root {
   width: 100vw;
   height: 100vh;
+  /* Prevent iOS bounce scroll */
+  position: fixed;
+  overflow: hidden;
 }
+
+/* ── Safe area support (iPhone notch/home bar) ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  #root { padding-bottom: env(safe-area-inset-bottom); }
+}
+
 
 /* ══════════════════════════════════════════════════════════════
    ANIMATIONS

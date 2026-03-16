@@ -154,8 +154,8 @@ const cardStyle = {
   background: 'linear-gradient(145deg, rgba(10, 10, 20, 0.95) 0%, rgba(5, 5, 15, 0.95) 100%)',
   border: '2px solid rgba(0, 180, 255, 0.5)',
   borderRadius: '20px',
-  padding: '3rem',
-  maxWidth: '500px',
+  padding: 'clamp(1.5rem, 4vw, 3rem)',
+  width: 'min(500px, 94vw)',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -167,7 +167,7 @@ const cardStyle = {
 }
 
 const titleStyle = {
-  fontSize: '2.5rem',
+  fontSize: 'clamp(1.8rem, 6vw, 2.5rem)',
   fontWeight: 900,
   letterSpacing: '0.15em',
   textTransform: 'uppercase',
