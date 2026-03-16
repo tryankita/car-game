@@ -292,9 +292,25 @@ export default function HUDPhoto() {
   const startRace = useGameStore((s) => s.startRace)
   const selectedCar = useGameStore((s) => s.selectedCar)
   const cars = useGameStore((s) => s.cars)
+  const [isCompactDevice, setIsCompactDevice] = useState(false)
 
   const topSpeed = cars[selectedCar]?.topSpeed ?? 55
-  const delta = isFinite(bestLap) ? raceTime - bestLap * Math.max(1, currentLap + 1) : raceTime
+
+  useEffect(() => {
+    const updateCompact = () => {
+      const hasTouch = ('ontouchstart' in window) || ((navigator.maxTouchPoints || 0) > 0)
+      const smallSide = Math.min(window.innerWidth, window.innerHeight)
+      setIsCompactDevice(hasTouch && smallSide <= 1024)
+    }
+
+    updateCompact()
+    window.addEventListener('resize', updateCompact)
+    window.addEventListener('orientationchange', updateCompact)
+    return () => {
+      window.removeEventListener('resize', updateCompact)
+      window.removeEventListener('orientationchange', updateCompact)
+    }
+  }, [])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -347,13 +363,15 @@ export default function HUDPhoto() {
         </div>
       </div>
 
-      {raceStarted && <div className="hud-photo-hide-mobile"><MinimapPanel /></div>}
+      {raceStarted && !isCompactDevice && <div className="hud-photo-hide-mobile"><MinimapPanel /></div>}
       {raceStarted && !raceFinished && (
         <>
-          <div className="hud-telemetry">
-            <TelemetryPanel speed={speed} topSpeed={topSpeed} raceTime={raceTime} currentLap={currentLap} totalLaps={totalLaps} bestLap={bestLap} />
-          </div>
-          <div className="hud-photo-hide-mobile"><TyresPanel raceTime={raceTime} speed={speed} topSpeed={topSpeed} /></div>
+          {!isCompactDevice && (
+            <div className="hud-telemetry">
+              <TelemetryPanel speed={speed} topSpeed={topSpeed} raceTime={raceTime} currentLap={currentLap} totalLaps={totalLaps} bestLap={bestLap} />
+            </div>
+          )}
+          {!isCompactDevice && <div className="hud-photo-hide-mobile"><TyresPanel raceTime={raceTime} speed={speed} topSpeed={topSpeed} /></div>}
         </>
       )}
 

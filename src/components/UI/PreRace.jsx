@@ -29,6 +29,36 @@ export default function PreRace() {
     return () => clearTimeout(t)
   }, [])
 
+  // Warm up race chunks while the player is reading this screen.
+  // This shortens the delay after pressing the RACE button.
+  useEffect(() => {
+    let idleId = null
+    let timeoutId = null
+
+    const warmup = () => {
+      import('../GameScene')
+      import('../Car')
+      import('../Track')
+      import('../Terrain')
+      import('../Lighting')
+      import('./HUDPhoto')
+      import('./RaceFinish')
+    }
+
+    if (typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(() => warmup(), { timeout: 1200 })
+    } else {
+      timeoutId = setTimeout(warmup, 300)
+    }
+
+    return () => {
+      if (idleId !== null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) clearTimeout(timeoutId)
+    }
+  }, [])
+
   const handleGo = () => {
     audioManager.enableAudio()
     launchRace()

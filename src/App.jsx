@@ -1,5 +1,4 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react'
-import { Canvas } from '@react-three/fiber'
 import useGameStore from './store'
 import audioManager from './audioManager'
 
@@ -8,16 +7,9 @@ const Home = lazy(() => import('./components/UI/Home'))
 const Garage = lazy(() => import('./components/UI/Garage'))
 const Levels = lazy(() => import('./components/UI/Levels'))
 const PreRace = lazy(() => import('./components/UI/PreRace'))
-const HUD = lazy(() => import('./components/UI/HUDPhoto'))
-const RaceFinish = lazy(() => import('./components/UI/RaceFinish'))
 const ArcadeGame = lazy(() => import('./components/UI/ArcadeGame'))
 const ModeSelect = lazy(() => import('./components/UI/ModeSelect'))
-
-// Lazy-loaded 3D scene components
-const Car = lazy(() => import('./components/Car'))
-const Track = lazy(() => import('./components/Track'))
-const Terrain = lazy(() => import('./components/Terrain'))
-const Lighting = lazy(() => import('./components/Lighting'))
+const GameScene = lazy(() => import('./components/GameScene'))
 
 /* ── Loading Fallback ───────────────────────────────────────── */
 function PageLoader({ label = 'LOADING' }) {
@@ -88,53 +80,6 @@ const dot = {
   background: '#00b4ff',
   animation: 'blink 1s ease-in-out infinite',
   boxShadow: '0 0 8px rgba(0, 180, 255, 0.6)',
-}
-
-/* ── Game Scene ─────────────────────────────────────────────── */
-function GameScene() {
-  const setCountdown = useGameStore((s) => s.setCountdown)
-  const setRaceStarted = useGameStore((s) => s.setRaceStarted)
-  const raceFinished = useGameStore((s) => s.raceFinished)
-
-  useEffect(() => {
-    audioManager.playRaceMusic()
-
-    const t1 = setTimeout(() => setCountdown(2), 1000)
-    const t2 = setTimeout(() => setCountdown(1), 2000)
-    const t3 = setTimeout(() => {
-      setCountdown(0)
-      setRaceStarted(true)
-    }, 3000)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
-      audioManager.stopEngineSound()
-    }
-  }, [])
-
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas shadows camera={{ position: [155, 12, -20], fov: 60 }} gl={{ antialias: true }}>
-        <color attach="background" args={['#87ceeb']} />
-        <Suspense fallback={null}>
-          <Lighting />
-          <Track />
-          <Terrain />
-          <Car />
-        </Suspense>
-      </Canvas>
-      <Suspense fallback={null}>
-        <HUD />
-      </Suspense>
-      {raceFinished && (
-        <Suspense fallback={null}>
-          <RaceFinish />
-        </Suspense>
-      )}
-      <MusicToggle />
-    </div>
-  )
 }
 
 /* ── Music Toggle Button ───────────────────────────────────── */
@@ -298,9 +243,12 @@ export default function App() {
     )
   } else {
     content = (
-      <Suspense fallback={<PageLoader label="RACE" />}>
-        <GameScene />
-      </Suspense>
+      <>
+        <Suspense fallback={<PageLoader label="RACE" />}>
+          <GameScene />
+        </Suspense>
+        <MusicToggle />
+      </>
     )
   }
 

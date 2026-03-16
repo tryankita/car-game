@@ -7,7 +7,7 @@ export const nightFactorRef = { current: 0 }
    Strong directional sun + soft ambient fill + sky hemisphere.
    No day/night cycle — the game is always set at bright midday.
    ═══════════════════════════════════════════════════════════════ */
-export default function Lighting() {
+export default function Lighting({ lowQuality = false }) {
   return (
     <>
       {/* Soft fill — prevents any surface going pitch black */}
@@ -21,9 +21,9 @@ export default function Lighting() {
         position={[150, 200, 100]}
         intensity={2.2}
         color="#fff8e8"
-        castShadow
-        shadow-mapSize-width={4096}
-        shadow-mapSize-height={4096}
+        castShadow={!lowQuality}
+        shadow-mapSize-width={lowQuality ? 1024 : 4096}
+        shadow-mapSize-height={lowQuality ? 1024 : 4096}
         shadow-camera-far={600}
         shadow-camera-left={-300}
         shadow-camera-right={300}
