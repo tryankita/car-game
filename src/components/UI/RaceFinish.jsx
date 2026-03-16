@@ -1,41 +1,27 @@
 import { useEffect, useState } from 'react'
 import useGameStore from '../../store'
 import audioManager from '../../audioManager'
-import { aiProgress, playerProgress } from '../../raceProgress'
 
 export default function RaceFinish() {
   const raceFinished = useGameStore((s) => s.raceFinished)
   const timeFailed = useGameStore((s) => s.timeFailed)
   const selectedLevel = useGameStore((s) => s.selectedLevel)
   const levels = useGameStore((s) => s.levels)
+  const raceTime = useGameStore((s) => s.raceTime)
   const bestLap = useGameStore((s) => s.bestLap)
   const completeLevel = useGameStore((s) => s.completeLevel)
   const calculateStars = useGameStore((s) => s.calculateStars)
   const setScreen = useGameStore((s) => s.setScreen)
   const startRace = useGameStore((s) => s.startRace)
   const goHome = useGameStore((s) => s.goHome)
-  const lastRaceReward = useGameStore((s) => s.lastRaceReward)
 
   const [levelCompleted, setLevelCompleted] = useState(false)
-  const [finishPosition, setFinishPosition] = useState(null)
-  const level = levels.find(l => l.id === selectedLevel)
   const stars = timeFailed ? 0 : calculateStars()
 
   useEffect(() => {
     if (raceFinished && !levelCompleted && !timeFailed) {
-      // Compute final race position
-      const all = [
-        { name: 'YOU', score: playerProgress.lap + playerProgress.t },
-        ...aiProgress.map(a => ({ name: a.name, score: a.lap + a.t })),
-      ].sort((a, b) => b.score - a.score)
-      const pos = all.findIndex(e => e.name === 'YOU') + 1
-      setFinishPosition(pos)
-
-      // Only complete level (unlock next + reward coins) if top 3
-      if (pos <= 3) {
-        completeLevel()
-        setLevelCompleted(true)
-      }
+      completeLevel()
+      setLevelCompleted(true)
     }
   }, [raceFinished, levelCompleted, timeFailed])
 
@@ -71,44 +57,13 @@ export default function RaceFinish() {
         {/* Title */}
         <h1 style={{
           ...titleStyle,
-          color: timeFailed ? '#ff4444' : levelCompleted ? '#ffffff' : '#ffcc00',
+          color: timeFailed ? '#ff4444' : '#ffffff',
           textShadow: timeFailed
             ? '0 0 20px rgba(255, 50, 50, 0.6)'
-            : levelCompleted
-              ? '0 0 20px rgba(0, 180, 255, 0.6)'
-              : '0 0 20px rgba(255, 200, 0, 0.6)',
+            : '0 0 20px rgba(0, 180, 255, 0.6)',
         }}>
-          {timeFailed ? "TIME'S UP!" : levelCompleted ? 'RACE COMPLETE' : 'RACE FINISHED'}
+          {timeFailed ? "TIME'S UP!" : 'WON'}
         </h1>
-
-        {/* Level name */}
-        <div style={levelNameStyle}>{level?.name}</div>
-
-        {/* Finish position badge */}
-        {!timeFailed && finishPosition !== null && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.2rem',
-          }}>
-            <div style={{
-              fontSize: finishPosition <= 3 ? '3.5rem' : '2.5rem',
-              fontWeight: 900,
-              color: finishPosition === 1 ? '#ffd700'
-                : finishPosition === 2 ? '#c0c0c0'
-                : finishPosition === 3 ? '#cd7f32'
-                : '#ff6666',
-              textShadow: `0 0 30px ${finishPosition <= 3 ? 'rgba(255,200,0,0.7)' : 'rgba(255,80,80,0.5)'}`,
-              lineHeight: 1,
-            }}>
-              P{finishPosition}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#aaa', letterSpacing: '2px' }}>
-              {finishPosition === 1 ? '🏆 WINNER' : finishPosition <= 3 ? 'PODIUM FINISH' : 'FINISH TOP 3 TO UNLOCK NEXT LEVEL'}
-            </div>
-          </div>
-        )}
 
         {/* Stars (only on top-3 finish) */}
         {!timeFailed && levelCompleted && (
@@ -140,45 +95,16 @@ export default function RaceFinish() {
         {/* Stats */}
         <div style={statsStyle}>
           <div style={statItem}>
+            <div style={statLabel}>Time</div>
+            <div style={statValue}>{raceTime.toFixed(2)}s</div>
+          </div>
+          <div style={statItem}>
             <div style={statLabel}>Best Lap</div>
             <div style={statValue}>
               {isFinite(bestLap) ? bestLap.toFixed(2) + 's' : '--'}
             </div>
           </div>
         </div>
-
-        {/* Star message (only on success) */}
-        {!timeFailed && levelCompleted && (
-          <div style={messageStyle}>
-            {stars === 3 && '🏆 PERFECT PERFORMANCE! 🏆'}
-            {stars === 2 && '⭐ GREAT JOB! ⭐'}
-            {stars === 1 && '✓ LEVEL COMPLETED'}
-          </div>
-        )}
-
-        {/* Reward (only on success) */}
-        {levelCompleted && !timeFailed && (
-          <div style={{
-            fontSize: '24px',
-            color: '#ffd700',
-            fontWeight: 'bold',
-            marginTop: '15px',
-            textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
-          }}>
-            +{lastRaceReward} COINS
-          </div>
-        )}
-
-        {/* No reward message on fail */}
-        {timeFailed && (
-          <div style={{
-            fontSize: '0.85rem',
-            color: '#666',
-            marginTop: '0.5rem',
-          }}>
-            No coins awarded — try again!
-          </div>
-        )}
 
         {/* Buttons */}
         <div style={buttonsStyle}>
@@ -250,13 +176,6 @@ const titleStyle = {
   color: '#ffffff',
 }
 
-const levelNameStyle = {
-  fontSize: '1.2rem',
-  color: '#00b4ff',
-  letterSpacing: '0.1em',
-  fontWeight: 600,
-}
-
 const starsDisplayStyle = {
   display: 'flex',
   gap: '1rem',
@@ -298,15 +217,6 @@ const statValue = {
   fontSize: '1.5rem',
   color: '#00b4ff',
   fontWeight: 700,
-}
-
-const messageStyle = {
-  fontSize: '1.1rem',
-  fontWeight: 600,
-  color: '#ffeb3b',
-  textAlign: 'center',
-  letterSpacing: '0.05em',
-  textShadow: '0 0 10px rgba(255, 235, 59, 0.4)',
 }
 
 const buttonsStyle = {

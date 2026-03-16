@@ -15,7 +15,6 @@ const ModeSelect = lazy(() => import('./components/UI/ModeSelect'))
 
 // Lazy-loaded 3D scene components
 const Car = lazy(() => import('./components/Car'))
-const AIRacers = lazy(() => import('./components/AIRacers'))
 const Track = lazy(() => import('./components/Track'))
 const Terrain = lazy(() => import('./components/Terrain'))
 const Lighting = lazy(() => import('./components/Lighting'))
@@ -123,7 +122,6 @@ function GameScene() {
           <Track />
           <Terrain />
           <Car />
-          <AIRacers />
         </Suspense>
       </Canvas>
       <Suspense fallback={null}>
