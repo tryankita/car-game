@@ -341,7 +341,6 @@ export default function HUDPhoto() {
         </div>
       </div>
 
-      {raceStarted && <LeaderboardPanel />}
       {raceStarted && <div className="hud-photo-hide-mobile"><MinimapPanel /></div>}
       {raceStarted && !raceFinished && (
         <>

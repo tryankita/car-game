@@ -589,7 +589,7 @@ export default function Car() {
     playerProgress.t   = lastFrameIdx.current / SAMPLES
     playerProgress.lap = useGameStore.getState().currentLap
 
-    // ── Lap detection ─────────────────────────────────────────
+    // ── Lap detection   ─────────────────────────────────────────
     const x = car.position.x
     const z = car.position.z
 
@@ -640,3 +640,20 @@ export default function Car() {
   )
 }
 
+/*
+
+ iuheoiuw hoeiu
+ wer we we e
+  oieoi e we
+ ewe we we as asasa as as as
+we we re 
+   werwes  ihaish ia
+ we rwe recas aas
+ wer we weo hoia
+  wie rw
+  e weiroih 
+
+
+
+
+*/

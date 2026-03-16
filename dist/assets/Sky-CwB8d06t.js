@@ -1,4 +1,4 @@
-import{_ as g}from"./extends-CF3RwP-h.js";import{V as r,S as p,b2 as d,b3 as y,M as S,b4 as E,r as n}from"./index-j3Q_KYgb.js";import{v as P}from"./constants-DJj9dhsF.js";var x=Object.defineProperty,w=(t,o,e)=>o in t?x(t,o,{enumerable:!0,configurable:!0,writable:!0,value:e}):t[o]=e,s=(t,o,e)=>(w(t,typeof o!="symbol"?o+"":o,e),e);const M=(()=>{const t={uniforms:{turbidity:{value:2},rayleigh:{value:1},mieCoefficient:{value:.005},mieDirectionalG:{value:.8},sunPosition:{value:new r},up:{value:new r(0,1,0)}},vertexShader:`
+import{_ as g}from"./extends-CF3RwP-h.js";import{V as r,S as p,b2 as d,b3 as y,M as S,b4 as E,r as n}from"./index-DjYW7hvi.js";import{v as P}from"./constants-Y9xVM9zt.js";var x=Object.defineProperty,w=(t,o,e)=>o in t?x(t,o,{enumerable:!0,configurable:!0,writable:!0,value:e}):t[o]=e,s=(t,o,e)=>(w(t,typeof o!="symbol"?o+"":o,e),e);const M=(()=>{const t={uniforms:{turbidity:{value:2},rayleigh:{value:1},mieCoefficient:{value:.005},mieDirectionalG:{value:.8},sunPosition:{value:new r},up:{value:new r(0,1,0)}},vertexShader:`
       uniform vec3 sunPosition;
       uniform float rayleigh;
       uniform float turbidity;
