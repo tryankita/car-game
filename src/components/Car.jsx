@@ -643,9 +643,7 @@ export default function Car() {
 
 /*
 
-
-jug fuweyg fuwyeg uwyge uwyeg fuwyeguwygeuwyge uywe gfuyweg fiuyeg fiwueyf giwuey gfiuwye fuyw eufy 
- nb  hgjhgvhgv jhgv hgvjhg jhg hj hgv
-
+ ttyrdrty ytrd ytrdytrtrdtrdyrtdytd ytrd tr eur toiwuer tiuehr tiuhertiueriohoirht 
+kdjsf ho iu he oiuh iweuhrt iuhe r
 
 */

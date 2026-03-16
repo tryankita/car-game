@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react'
+import React, { useEffect, useState, Suspense, lazy } from 'react'
 import { Canvas } from '@react-three/fiber'
 import useGameStore from './store'
 import audioManager from './audioManager'
@@ -171,6 +171,81 @@ function MusicToggle() {
   )
 }
 
+function OrientationGate({ children }) {
+  const [mustRotate, setMustRotate] = useState(false)
+
+  useEffect(() => {
+    const update = () => {
+      const hasTouch = ('ontouchstart' in window) || ((navigator.maxTouchPoints || 0) > 0)
+      const smallSide = Math.min(window.innerWidth, window.innerHeight)
+      const isMobileOrTablet = hasTouch && smallSide <= 1024
+      const isPortrait = window.innerHeight > window.innerWidth
+
+      setMustRotate(isMobileOrTablet && isPortrait)
+
+      if (isMobileOrTablet && !isPortrait && window.screen?.orientation?.lock) {
+        window.screen.orientation.lock('landscape').catch(() => {})
+      }
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('orientationchange', update)
+    }
+  }, [])
+
+  if (!mustRotate) return children
+
+  return (
+    <div style={rotateWrap}>
+      <div style={rotateCard}>
+        <div style={rotateTitle}>Rotate Device</div>
+        <div style={rotateText}>This game is optimized for landscape mode on mobile and tablet.</div>
+      </div>
+    </div>
+  )
+}
+
+const rotateWrap = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 99999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'radial-gradient(circle at 50% 40%, rgba(18,28,42,0.96), rgba(4,8,14,0.98))',
+  padding: '1.5rem',
+  fontFamily: "'Orbitron', sans-serif",
+}
+
+const rotateCard = {
+  width: 'min(420px, 92vw)',
+  border: '1px solid rgba(0,180,255,0.45)',
+  borderRadius: '14px',
+  background: 'rgba(8,14,24,0.82)',
+  padding: '1.4rem 1.2rem',
+  textAlign: 'center',
+  boxShadow: '0 0 30px rgba(0,180,255,0.2)',
+}
+
+const rotateTitle = {
+  color: '#f5fbff',
+  fontSize: '1.25rem',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const rotateText = {
+  marginTop: '0.8rem',
+  color: 'rgba(230,240,255,0.82)',
+  fontSize: '0.9rem',
+  lineHeight: 1.5,
+}
+
 /* ── Root App ───────────────────────────────────────────────── */
 export default function App() {
   const screen = useGameStore((s) => s.screen)
@@ -183,51 +258,51 @@ export default function App() {
     }
   }, [screen])
 
-  if (screen === 'arcade')
-    return (
+  let content
+
+  if (screen === 'arcade') {
+    content = (
       <Suspense fallback={<PageLoader label="ARCADE" />}>
         <ArcadeGame />
       </Suspense>
     )
-
-  if (screen === 'home')
-    return (
+  } else if (screen === 'home') {
+    content = (
       <Suspense fallback={<PageLoader label="LOADING" />}>
         <Home /><MusicToggle />
       </Suspense>
     )
-
-  if (screen === 'modeselect')
-    return (
+  } else if (screen === 'modeselect') {
+    content = (
       <Suspense fallback={<PageLoader label="LOADING" />}>
         <ModeSelect /><MusicToggle />
       </Suspense>
     )
-
-  if (screen === 'garage')
-    return (
+  } else if (screen === 'garage') {
+    content = (
       <Suspense fallback={<PageLoader label="GARAGE" />}>
         <Garage /><MusicToggle />
       </Suspense>
     )
-
-  if (screen === 'levels')
-    return (
+  } else if (screen === 'levels') {
+    content = (
       <Suspense fallback={<PageLoader label="LEVELS" />}>
         <Levels /><MusicToggle />
       </Suspense>
     )
-
-  if (screen === 'prerace')
-    return (
+  } else if (screen === 'prerace') {
+    content = (
       <Suspense fallback={<PageLoader label="LOADING" />}>
         <PreRace /><MusicToggle />
       </Suspense>
     )
+  } else {
+    content = (
+      <Suspense fallback={<PageLoader label="RACE" />}>
+        <GameScene />
+      </Suspense>
+    )
+  }
 
-  return (
-    <Suspense fallback={<PageLoader label="RACE" />}>
-      <GameScene />
-    </Suspense>
-  )
+  return <OrientationGate>{content}</OrientationGate>
 }
