@@ -416,7 +416,7 @@ export default function Car() {
   /* Reset on car change or level change */
   useEffect(() => {
     if (carRef.current) {
-      carRef.current.position.set(track.spawn[0], 0.5, track.spawn[1])
+      carRef.current.position.set(track.spawn[0], 0.85, track.spawn[1])
       carRef.current.rotation.set(0, 0, 0)
       velocity.current = 0
       lateralVel.current = 0
@@ -489,7 +489,7 @@ export default function Car() {
     velocity.current = THREE.MathUtils.clamp(velocity.current, -topSpeed * 0.3, topSpeed)
     if (Math.abs(velocity.current) < 0.05) velocity.current = 0
 
-    if (car.position.y < 0.5) car.position.y = 0.5
+    if (car.position.y < 0.85) car.position.y = 0.85
 
     // ── Steering — less responsive at high speed (F1 feel) ────
     const steerSensitivity = handling * Math.min(speedRatio * 3, 1) * (1 - speedRatio * 0.28)
@@ -516,7 +516,7 @@ export default function Car() {
 
     car.position.addScaledVector(fwdVec, velocity.current * dt * SPEED_FEEL_MULT)
     car.position.addScaledVector(rightVec, lateralVel.current * dt)
-    car.position.y = 0.5
+    car.position.y = 0.85
 
     // ── Barrier collision ─────────────────────────────────────
     // Use local search around last known track segment to avoid snapping
@@ -639,12 +639,12 @@ export default function Car() {
     </>
   )
 }
-
-
 /*
 
-ghhg ghgv hgvh gv jkbkjblkj
- iug uigiugiogiugoiug iugugiu uig iou giuguiogiu oiug oiug oiuiuiu iugoiugiu iu iu giou iu iu iuogiug oiu iu iu oiug oiu ouig uig u iu uigio uig iug iu
+
+
+
+  c
 */
 
 
