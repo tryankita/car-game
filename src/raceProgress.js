@@ -4,13 +4,13 @@
    ─────────────────────────────────────────────────────────── */
 
 export const AI_CONFIG = [
-  { name: 'HAMILTON',   color: '#1e90ff', speedFactor: 0.92, startT: 0.10 },
-  { name: 'LECLERC',    color: '#dc143c', speedFactor: 0.88, startT: 0.06 },
-  { name: 'VERSTAPPEN', color: '#0039a6', speedFactor: 0.95, startT: 0.08 },
-  { name: 'ALONSO',     color: '#ff8c00', speedFactor: 0.85, startT: 0.12 },
-  { name: 'SAINZ',      color: '#e87122', speedFactor: 0.82, startT: 0.04 },
-  { name: 'NORRIS',     color: '#ff8800', speedFactor: 0.90, startT: 0.14 },
-  { name: 'RUSSELL',    color: '#00b1d2', speedFactor: 0.87, startT: 0.16 },
+  { name: 'HAMILTON',   color: '#1e90ff', speedFactor: 0.72, startT: 0.10 },
+  { name: 'LECLERC',    color: '#dc143c', speedFactor: 0.68, startT: 0.06 },
+  { name: 'VERSTAPPEN', color: '#0039a6', speedFactor: 0.75, startT: 0.08 },
+  { name: 'ALONSO',     color: '#ff8c00', speedFactor: 0.65, startT: 0.12 },
+  { name: 'SAINZ',      color: '#e87122', speedFactor: 0.62, startT: 0.04 },
+  { name: 'NORRIS',     color: '#ff8800', speedFactor: 0.70, startT: 0.14 },
+  { name: 'RUSSELL',    color: '#00b1d2', speedFactor: 0.67, startT: 0.16 },
 ]
 
 // Live mutable state — mutated each frame, never triggers React re-renders

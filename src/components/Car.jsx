@@ -639,12 +639,6 @@ export default function Car() {
     </>
   )
 }
-/*
 
-
-
-
-  c
-*/
 
 
