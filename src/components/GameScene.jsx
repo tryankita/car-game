@@ -50,7 +50,7 @@ export default function GameScene() {
   }, [])
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100dvh', minHeight: '100vh', position: 'relative' }}>
       <Canvas
         shadows={!isMobileDevice}
         dpr={isMobileDevice ? [1, 1.25] : [1, 2]}
