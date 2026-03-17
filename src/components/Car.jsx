@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import useGameStore from '../store'
 import audioManager from '../audioManager'
 import { nearestTrackInfo, WALL_D, setActiveLevel, getActiveTrack, SAMPLES } from '../trackData'
-import { nightFactorRef } from './Lighting'
+import { nightFactorRef } from './lightingState'
 import { playerProgress, resetProgress } from '../raceProgress'
 import { touchKeys } from '../touchControls'
 

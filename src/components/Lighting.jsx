@@ -1,6 +1,7 @@
-// Shared night factor — always 0 (permanent daytime)
-// Still exported so Car.jsx / Track.jsx that reference it don't break
-export const nightFactorRef = { current: 0 }
+import { nightFactorRef } from './lightingState'
+
+// Backward-compatible export for existing imports.
+export { nightFactorRef }
 
 /* ═══════════════════════════════════════════════════════════════
    DAYTIME LIGHTING  (PRD §6)

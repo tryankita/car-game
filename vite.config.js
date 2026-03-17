@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -29,17 +30,26 @@ export default defineConfig({
             return 'race-mode'
           }
 
-          if (!id.includes('node_modules')) return
+          if (!path.includes('/node_modules/')) return
 
-          if (
-            id.includes('three') ||
-            id.includes('@react-three/fiber') ||
-            id.includes('@react-three/drei')
-          ) {
-            return 'three-vendor'
+          // Keep 3D stack split so first-load cost is lower on mobile.
+          if (path.includes('/node_modules/three/')) {
+            return 'three-core'
           }
 
-          if (id.includes('zustand')) {
+          if (path.includes('/node_modules/@react-three/fiber/')) {
+            return 'r3f-vendor'
+          }
+
+          if (
+            path.includes('/node_modules/@react-three/drei/') ||
+            path.includes('/node_modules/three-stdlib/') ||
+            path.includes('/node_modules/maath/')
+          ) {
+            return 'drei-vendor'
+          }
+
+          if (path.includes('/node_modules/zustand/')) {
             return 'state-vendor'
           }
         },
