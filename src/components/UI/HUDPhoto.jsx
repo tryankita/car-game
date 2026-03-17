@@ -309,7 +309,7 @@ export default function HUDPhoto() {
   const compactTopTime = isCompactDevice ? { ...topTime, fontSize: '1.15rem', width: '132px', letterSpacing: '0.04em' } : topTime
   const compactTouchWrap = isCompactDevice ? {
     ...touchControlsWrap,
-    bottom: 'calc(max(10px, env(safe-area-inset-bottom)) + 24px)',
+    bottom: 'calc(max(10px, env(safe-area-inset-bottom)) + 38px)',
     padding: '0 10px',
     alignItems: 'flex-end',
   } : touchControlsWrap
