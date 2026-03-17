@@ -53,16 +53,16 @@ export default function GameScene() {
     <div style={{ width: '100vw', height: '100dvh', minHeight: '100vh', position: 'relative' }}>
       <Canvas
         shadows={!isMobileDevice}
-        dpr={isMobileDevice ? [0.75, 1] : [1, 2]}
+        dpr={isMobileDevice ? [1, 1.25] : [1, 2]}
         camera={{ position: [155, 12, -20], fov: 60 }}
-        gl={{ antialias: !isMobileDevice, powerPreference: 'high-performance', stencil: false, depth: true }}
+        gl={{ antialias: !isMobileDevice, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={['#87ceeb']} />
         <Suspense fallback={null}>
           <Lighting lowQuality={isMobileDevice} />
-          <Track lowQuality={isMobileDevice} />
+          <Track />
           <Terrain />
-          <Car lowQuality={isMobileDevice} />
+          <Car />
         </Suspense>
       </Canvas>
       <Suspense fallback={null}>

@@ -13,15 +13,15 @@ const pressedKeys = {}
 const SPEED_FEEL_MULT = 1.75
 
 /* ── GLB Car Model ─────────────────────────────────────────── */
-function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY, lowQuality = false }) {
+function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY }) {
   const { scene } = useGLTF(modelPath || '/models/muscle_car.glb')
 
   const clonedScene = useMemo(() => {
     const clone = scene.clone(true)
     clone.traverse((child) => {
       if (child.isMesh) {
-        child.castShadow = !lowQuality
-        child.receiveShadow = !lowQuality
+        child.castShadow = true
+        child.receiveShadow = true
         // Tint the car body with the selected color
         if (child.material) {
           child.material = child.material.clone()
@@ -35,7 +35,7 @@ function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY, lowQu
       }
     })
     return clone
-  }, [scene, color, lowQuality])
+  }, [scene, color])
 
   return (
     <primitive
@@ -48,19 +48,19 @@ function GLBCarModel({ color, modelPath, modelScale, modelRotY, modelPosY, lowQu
 }
 
 /* ── Fallback box car (shown while model loads) ────────────── */
-function FallbackCar({ color, lowQuality = false }) {
+function FallbackCar({ color }) {
   return (
     <group position={[0, 0.35, 0]}>
-      <mesh position={[0, 0.55, 0]} castShadow={!lowQuality}>
+      <mesh position={[0, 0.55, 0]} castShadow>
         <boxGeometry args={[2.1, 0.5, 4.2]} />
         <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
       </mesh>
-      <mesh position={[0, 1.0, -0.2]} castShadow={!lowQuality}>
+      <mesh position={[0, 1.0, -0.2]} castShadow>
         <boxGeometry args={[1.7, 0.45, 2.0]} />
         <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
       </mesh>
       {[[-1.15, 0.3, 1.35], [1.15, 0.3, 1.35], [-1.15, 0.3, -1.35], [1.15, 0.3, -1.35]].map((pos, i) => (
-        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]} castShadow={!lowQuality}>
+        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.32, 0.32, 0.26, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
@@ -70,10 +70,10 @@ function FallbackCar({ color, lowQuality = false }) {
 }
 
 /* ── Car wrapper with Suspense ─────────────────────────────── */
-function CarModel({ color, modelPath, modelScale, modelRotY, modelPosY, lowQuality = false }) {
+function CarModel({ color, modelPath, modelScale, modelRotY, modelPosY }) {
   return (
-    <Suspense fallback={<FallbackCar color={color} lowQuality={lowQuality} />}>
-      <GLBCarModel color={color} modelPath={modelPath} modelScale={modelScale} modelRotY={modelRotY} modelPosY={modelPosY} lowQuality={lowQuality} />
+    <Suspense fallback={<FallbackCar color={color} />}>
+      <GLBCarModel color={color} modelPath={modelPath} modelScale={modelScale} modelRotY={modelRotY} modelPosY={modelPosY} />
     </Suspense>
   )
 }
@@ -361,7 +361,7 @@ function SkidMarks({ carRef, lateralVelRef, raceStarted }) {
 }
 
 /* ── Main Car component ────────────────────────────────────── */
-export default function Car({ lowQuality = false }) {
+export default function Car() {
   const carRef = useRef()
   const velocity = useRef(0)
   const { camera } = useThree()
@@ -630,13 +630,13 @@ export default function Car({ lowQuality = false }) {
     <>
       <group ref={carRef} position={[track.spawn[0], 0.5, track.spawn[1]]}>
         <group ref={bodyGroupRef}>
-          <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} lowQuality={lowQuality} />
-          {!lowQuality && <CarLights velocityRef={velocity} />}
+          <CarModel color={carConfig.color} modelPath={carConfig.model} modelScale={carConfig.scale} modelRotY={carConfig.modelRotY} modelPosY={carConfig.modelPosY} />
+          <CarLights velocityRef={velocity} />
         </group>
       </group>
-      {!lowQuality && <TireSmoke carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />}
-      {!lowQuality && <SkidMarks carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />}
-      {!lowQuality && <SpeedLines carRef={carRef} velocityRef={velocity} />}
+      <TireSmoke carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />
+      <SkidMarks carRef={carRef} lateralVelRef={lateralVel} raceStarted={raceStarted} />
+      <SpeedLines carRef={carRef} velocityRef={velocity} />
     </>
   )
 }
