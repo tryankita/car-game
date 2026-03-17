@@ -7,6 +7,28 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const path = id.replace(/\\/g, '/')
+
+          if (
+            path.includes('/src/components/UI/ArcadeGame.jsx') ||
+            path.includes('/src/arcade/')
+          ) {
+            return 'arcade-mode'
+          }
+
+          if (
+            path.includes('/src/components/GameScene.jsx') ||
+            path.includes('/src/components/Car.jsx') ||
+            path.includes('/src/components/Track.jsx') ||
+            path.includes('/src/components/Terrain.jsx') ||
+            path.includes('/src/components/Lighting.jsx') ||
+            path.includes('/src/components/UI/HUDPhoto.jsx') ||
+            path.includes('/src/components/UI/RaceFinish.jsx') ||
+            path.includes('/src/raceProgress.js')
+          ) {
+            return 'race-mode'
+          }
+
           if (!id.includes('node_modules')) return
 
           if (
