@@ -7,10 +7,45 @@ const HomeBg3D = lazy(() => import('./HomeBg3D'))
 export default function Home() {
   const setScreen = useGameStore((s) => s.setScreen)
   const [hover, setHover] = useState(null)
+  const [showBg3D, setShowBg3D] = useState(false)
 
   useEffect(() => {
-    audioManager.enableAudio()
-    audioManager.playMenuMusic()
+    let idleId = null
+    let timeoutId = null
+
+    const hasTouch = ('ontouchstart' in window) || ((navigator.maxTouchPoints || 0) > 0)
+    const smallSide = Math.min(window.innerWidth, window.innerHeight)
+    const isCompactDevice = hasTouch && smallSide <= 1024
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    const lowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4
+
+    if (!isCompactDevice && !prefersReducedMotion && !lowMemoryDevice) {
+      const revealBg = () => setShowBg3D(true)
+      if (typeof window.requestIdleCallback === 'function') {
+        idleId = window.requestIdleCallback(revealBg, { timeout: 1200 })
+      } else {
+        timeoutId = window.setTimeout(revealBg, 450)
+      }
+    }
+
+    const unlockAudio = () => {
+      audioManager.enableAudio()
+      audioManager.playMenuMusic()
+      window.removeEventListener('pointerdown', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+    }
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true })
+    window.addEventListener('keydown', unlockAudio, { once: true })
+
+    return () => {
+      if (idleId !== null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+      window.removeEventListener('pointerdown', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+    }
   }, [])
 
   const handleStart = () => {
@@ -20,7 +55,9 @@ export default function Home() {
 
   return (
     <div style={containerStyle}>
-      <Suspense fallback={null}><HomeBg3D /></Suspense>
+      {showBg3D && (
+        <Suspense fallback={null}><HomeBg3D /></Suspense>
+      )}
       <div style={darkOverlay} />
       <div style={gridOverlay} />
 
