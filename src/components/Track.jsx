@@ -921,7 +921,7 @@ function StartLightsGantry({ sf }) {
   )
 }
 
-export default function Track() {
+export default function Track({ lowQuality = false }) {
   const selectedLevel = useGameStore((s) => s.selectedLevel)
 
   const curve  = useMemo(() => { setActiveLevel(selectedLevel); return makeCurve() }, [selectedLevel])
@@ -929,12 +929,12 @@ export default function Track() {
 
   // Shared neon material (day only)
   const neonMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#00ccff', emissive: '#00ccff', emissiveIntensity: 0.15,
-  }), [])
+    color: '#00ccff', emissive: '#00ccff', emissiveIntensity: lowQuality ? 0.08 : 0.15,
+  }), [lowQuality])
 
   // Procedural asphalt textures
-  const asphaltMap    = useMemo(() => makeAsphaltTexture(), [])
-  const asphaltNormal = useMemo(() => makeAsphaltNormal(), [])
+  const asphaltMap    = useMemo(() => (lowQuality ? null : makeAsphaltTexture()), [lowQuality])
+  const asphaltNormal = useMemo(() => (lowQuality ? null : makeAsphaltNormal()), [lowQuality])
 
   const roadG      = useMemo(() => flatStrip(frames, ROAD_W, 0.01), [frames])
   const innerSW    = useMemo(() => ringStrip(frames, HW, HW + SW_W, 0.05), [frames])
@@ -1102,7 +1102,7 @@ export default function Track() {
         <meshStandardMaterial
           map={asphaltMap}
           normalMap={asphaltNormal}
-          normalScale={[0.3, 0.3]}
+          normalScale={lowQuality ? [0, 0] : [0.3, 0.3]}
           roughness={0.72}
           metalness={0.08}
         />
@@ -1163,11 +1163,11 @@ export default function Track() {
       ))}
 
       {/* ── F1 Start / Finish Gantry with animated lights ── */}
-      <StartLightsGantry sf={sf} />
+      {!lowQuality && <StartLightsGantry sf={sf} />}
 
       {/* Grandstand */}
       {/* ── Main Grandstand (Start/Finish side) ─────────────── */}
-      <group
+      {!lowQuality && <group
         position={[
           sf.p.x - sf.nm.x * (WALL_D + 14), 0,
           sf.p.z - sf.nm.z * (WALL_D + 14),
@@ -1209,10 +1209,10 @@ export default function Track() {
           <boxGeometry args={[2, 16, 82]} />
           <meshStandardMaterial color="#a8a09a" roughness={0.9} />
         </mesh>
-      </group>
+      </group>}
 
       {/* ── Opposite grandstand (smaller, other side) ───────── */}
-      <group
+      {!lowQuality && <group
         position={[
           sf.p.x + sf.nm.x * (WALL_D + 14), 0,
           sf.p.z + sf.nm.z * (WALL_D + 14),
@@ -1235,10 +1235,10 @@ export default function Track() {
           <boxGeometry args={[8, 0.35, 62]} />
           <meshStandardMaterial color="#ddd8d0" metalness={0.3} roughness={0.4} />
         </mesh>
-      </group>
+      </group>}
 
       {/* ── Pit-lane building (PRD §5 Race Infrastructure) ─── */}
-      <group
+      {!lowQuality && <group
         position={[
           sf.p.x + sf.nm.x * (WALL_D + 6), 0,
           sf.p.z + sf.nm.z * (WALL_D + 6),
@@ -1267,28 +1267,28 @@ export default function Track() {
           <boxGeometry args={[9.4, 0.3, 70.4]} />
           <meshStandardMaterial color="#2a3a4a" metalness={0.4} roughness={0.5} />
         </mesh>
-      </group>
+      </group>}
 
       {/* Streetlights — each self-contained with own useFrame */}
-      {lamps.map((pos, i) => (
+      {!lowQuality && lamps.map((pos, i) => (
         <Lamp key={`l${i}`} pos={pos} />
       ))}
 
       {/* ── Trackside sponsor boards (PRD §5) ──────────────── */}
-      {sponsorBoards.map((b, i) => (
+      {!lowQuality && sponsorBoards.map((b, i) => (
         <SponsorBoard key={`sb${i}`} pos={b.pos} ry={b.ry} idx={b.idx} />
       ))}
 
       {/* ── Camera lattice towers (PRD §5) ─────────────────── */}
-      {cameraTowers.map((ct, i) => (
+      {!lowQuality && cameraTowers.map((ct, i) => (
         <CameraLattice key={`ct${i}`} pos={ct.pos} ry={ct.ry} />
       ))}
 
       {/* Buildings — windows included with reduced counts for performance */}
-      {blds.map((b, i) => <Bld key={`b${i}`} b={b} neonMat={neonMat} />)}
+      {!lowQuality && blds.map((b, i) => <Bld key={`b${i}`} b={b} neonMat={neonMat} />)}
 
       {/* ── Landmark Buildings ────────────────────────────────── */}
-      {(() => {
+      {!lowQuality && (() => {
         // Place landmarks at 25%, 50%, 75% around the track, on the outer side
         const landmarkFrames = [Math.floor(frames.length * 0.25), Math.floor(frames.length * 0.5), Math.floor(frames.length * 0.75)]
         const lmOff = WALL_D + 30
@@ -1309,7 +1309,7 @@ export default function Track() {
       })()}
 
       {/* Decorative trees — 2 instanced draw calls */}
-      <InstancedTrees frames={frames} selectedLevel={selectedLevel} />
+      {!lowQuality && <InstancedTrees frames={frames} selectedLevel={selectedLevel} />}
     </group>
   )
 }
