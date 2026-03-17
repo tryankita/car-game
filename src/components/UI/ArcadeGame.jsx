@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import useGameStore from '../../store'
 
 // All styles are injected via a <style> tag so they match the original
-// Neon Rush game exactly, without polluting the React app's CSS.
+// Coin Rush game exactly, without polluting the React app's CSS.
 const ARCADE_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;700;900&display=swap');
 
@@ -277,7 +277,7 @@ export default function ArcadeGame() {
 
       {/* Loading screen */}
       <div id="loading-screen">
-        <div id="loading-text">Loading Neon Rush…</div>
+        <div id="loading-text">Loading Coin Rush…</div>
         <div id="loading-progress">0%</div>
       </div>
 
@@ -287,7 +287,7 @@ export default function ArcadeGame() {
       {/* Start screen */}
       <div id="start-screen" className="hidden">
         <div className="game-title-container">
-          <h1 className="main-title">NEON <span style={{ color: '#55efc4' }}>RUSH</span></h1>
+          <h1 className="main-title">COIN <span style={{ color: '#55efc4' }}>RUSH</span></h1>
           <div className="subtitle">HYPER-ARCADE RACING</div>
         </div>
         <button id="start-game-button">START RACE</button>

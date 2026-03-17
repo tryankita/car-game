@@ -295,6 +295,24 @@ export default function HUDPhoto() {
   const [isCompactDevice, setIsCompactDevice] = useState(false)
 
   const topSpeed = cars[selectedCar]?.topSpeed ?? 55
+  const compactTopBar = isCompactDevice ? {
+    ...topBar,
+    width: 'calc(100vw - 12px)',
+    maxWidth: '430px',
+    height: '54px',
+    padding: '0 10px',
+    borderRadius: '0 0 10px 10px',
+  } : topBar
+  const compactTopBarLabel = isCompactDevice ? { ...topBarLabel, fontSize: '0.58rem', letterSpacing: '0.08em' } : topBarLabel
+  const compactTopBarBig = isCompactDevice ? { ...topBarBig, fontSize: '1.35rem' } : topBarBig
+  const compactTopBarSub = isCompactDevice ? { ...topBarSub, fontSize: '0.72rem' } : topBarSub
+  const compactTopTime = isCompactDevice ? { ...topTime, fontSize: '1.15rem', width: '132px', letterSpacing: '0.04em' } : topTime
+  const compactTouchWrap = isCompactDevice ? {
+    ...touchControlsWrap,
+    bottom: 'max(10px, env(safe-area-inset-bottom))',
+    padding: '0 10px',
+    alignItems: 'flex-end',
+  } : touchControlsWrap
 
   useEffect(() => {
     const updateCompact = () => {
@@ -343,18 +361,18 @@ export default function HUDPhoto() {
         }
       `}</style>
 
-      <div style={topBar}>
+      <div style={compactTopBar}>
         <div style={topBarLeft}>
-          <span style={topBarLabel}>LAP</span>
-          <span style={topBarBig}>{Math.min(currentLap + 1, totalLaps)}</span>
+          <span style={compactTopBarLabel}>LAP</span>
+          <span style={compactTopBarBig}>{Math.min(currentLap + 1, totalLaps)}</span>
           <span style={topBarSlash}>/</span>
-          <span style={topBarSub}>{totalLaps}</span>
+          <span style={compactTopBarSub}>{totalLaps}</span>
         </div>
         <div style={topBarCenter}>
-          <span style={topTime}>{fmtRace(raceTime)}</span>
+          <span style={compactTopTime}>{fmtRace(raceTime)}</span>
         </div>
         <div style={topBarRight}>
-          {isFinite(bestLap) && (
+          {!isCompactDevice && isFinite(bestLap) && (
             <>
               <span style={topBarLabel}>BEST</span>
               <span style={topBarDelta}>{fmtRace(bestLap)}</span>
@@ -377,16 +395,16 @@ export default function HUDPhoto() {
 
       {/* Mobile touch controls — hidden on desktop via CSS */}
       {raceStarted && !raceFinished && !paused && (
-        <div className="hud-touch-controls" style={touchControlsWrap}>
+        <div className="hud-touch-controls" style={compactTouchWrap}>
           <div style={touchControlsLeft}>
             <button
-              style={touchBtn}
+              style={isCompactDevice ? touchSteerBtnCompact : touchBtn}
               onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowLeft'] = true }}
               onTouchEnd={() => { touchKeys['ArrowLeft'] = false }}
               onTouchCancel={() => { touchKeys['ArrowLeft'] = false }}
             >&#9668;</button>
             <button
-              style={touchBtn}
+              style={isCompactDevice ? touchSteerBtnCompact : touchBtn}
               onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowRight'] = true }}
               onTouchEnd={() => { touchKeys['ArrowRight'] = false }}
               onTouchCancel={() => { touchKeys['ArrowRight'] = false }}
@@ -394,13 +412,13 @@ export default function HUDPhoto() {
           </div>
           <div style={touchControlsRight}>
             <button
-              style={{ ...touchBtn, background: 'rgba(0,180,80,0.28)', borderColor: '#00e676' }}
+              style={isCompactDevice ? { ...touchActionBtnCompact, background: 'rgba(0,180,80,0.32)', borderColor: '#00e676' } : { ...touchBtn, background: 'rgba(0,180,80,0.28)', borderColor: '#00e676' }}
               onTouchStart={(e) => { e.preventDefault(); touchKeys['ArrowUp'] = true }}
               onTouchEnd={() => { touchKeys['ArrowUp'] = false }}
               onTouchCancel={() => { touchKeys['ArrowUp'] = false }}
             >&#9650; GAS</button>
             <button
-              style={{ ...touchBtn, background: 'rgba(255,60,60,0.28)', borderColor: '#ff4a4a' }}
+              style={isCompactDevice ? { ...touchActionBtnCompact, background: 'rgba(255,60,60,0.32)', borderColor: '#ff4a4a' } : { ...touchBtn, background: 'rgba(255,60,60,0.28)', borderColor: '#ff4a4a' }}
               onTouchStart={(e) => { e.preventDefault(); touchKeys['Space'] = true }}
               onTouchEnd={() => { touchKeys['Space'] = false }}
               onTouchCancel={() => { touchKeys['Space'] = false }}
@@ -463,6 +481,26 @@ const touchBtn = {
   cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
   touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
   letterSpacing: '0.05em', gap: '4px', flexDirection: 'column',
+}
+const touchSteerBtnCompact = {
+  ...touchBtn,
+  width: '70px',
+  height: '64px',
+  fontSize: '1.35rem',
+  letterSpacing: '0',
+  flexDirection: 'row',
+  gap: '0',
+}
+const touchActionBtnCompact = {
+  ...touchBtn,
+  width: '98px',
+  height: '66px',
+  fontSize: '0.84rem',
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  whiteSpace: 'nowrap',
+  flexDirection: 'row',
+  gap: '6px',
 }
 
 const topBar = {
